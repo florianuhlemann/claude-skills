@@ -1,0 +1,73 @@
+(version 1)
+# JLCPCB 4-layer, economy assembly — design-side rules used by the
+# pcb-design skill. Values are the skill's conservative defaults, not
+# JLC's absolute minimums; relax a single rule only with a written
+# reason in docs/design-notes.md. Copy this file next to the
+# .kicad_pcb (same base name, .kicad_dru) so KiCad loads it.
+
+# Copper
+(rule "track width (default min)"
+  (constraint track_width (min 0.127mm))
+  (condition "A.Type == 'Track'"))
+
+(rule "copper clearance"
+  (constraint clearance (min 0.127mm)))
+
+(rule "copper to board edge"
+  (constraint edge_clearance (min 0.5mm)))
+
+# Vias — 0.3 mm hole minimum, pad >= hole + 0.15 mm (0.45 mm) minimum,
+# 0.6 mm pad is the working default (set in the board's via defaults).
+(rule "via hole minimum"
+  (constraint hole_size (min 0.3mm))
+  (condition "A.Type == 'Via'"))
+
+(rule "via diameter minimum"
+  (constraint via_diameter (min 0.45mm))
+  (condition "A.Type == 'Via'"))
+
+(rule "annular ring"
+  (constraint annular_width (min 0.075mm)))
+
+(rule "no micro or blind vias"
+  (constraint disallow micro_via buried_via))
+
+# Holes
+(rule "hole to hole"
+  (constraint hole_to_hole (min 0.5mm)))
+
+(rule "hole to board edge"
+  (constraint physical_hole_clearance (min 0.5mm))
+  (condition "B.Layer == 'Edge.Cuts'"))
+
+(rule "pth drill minimum"
+  (constraint hole_size (min 0.3mm))
+  (condition "A.Type == 'Pad'"))
+
+# Solder mask: the mask dam (min web width 0.2 mm) and mask expansion
+# (0.05 mm) are board-setup settings, not rule-file constraints — set
+# them in Board Setup > Solder Mask/Paste.
+
+# Silkscreen
+(rule "silk to pad"
+  (constraint silk_clearance (min 0.15mm))
+  (condition "A.Layer == 'F.Silkscreen' || A.Layer == 'B.Silkscreen'"))
+
+(rule "silk text size"
+  (constraint text_height (min 1.0mm))
+  (condition "A.Type == 'Text' && (A.Layer == 'F.Silkscreen' || A.Layer == 'B.Silkscreen')"))
+
+(rule "silk line / stroke"
+  (constraint text_thickness (min 0.15mm))
+  (condition "A.Layer == 'F.Silkscreen' || A.Layer == 'B.Silkscreen'"))
+
+# Courtyards
+(rule "courtyard overlap"
+  (constraint courtyard_clearance (min 0.0mm)))
+
+# Inner layers: keep them as planes; flag any track there so it must
+# be justified (a DRC warning via severity in the board settings is
+# the intent — adjust the severity of this rule in the board setup).
+(rule "inner layer tracks (justify)"
+  (constraint track_width (min 0.2mm))
+  (condition "A.Type == 'Track' && (A.Layer == 'In1.Cu' || A.Layer == 'In2.Cu')"))
