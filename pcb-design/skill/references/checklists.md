@@ -76,7 +76,7 @@ Documentation
 
 ## Self-audit (mandatory before each gate)
 
-1. Export the netlist; `audit_netlist.py` checks every pin in `docs/netlist-expect.json` (written from the datasheet summaries, independently of any generator) and runs `scripts/netlist_checks.py`; run `--corrupt` once (negative control). Then compare the remaining pins by hand against the reference circuit **and** the deep-read constraint list.
+1. Export the netlist; `audit_netlist.py` checks every pin in `docs/netlist-expect.json` (written from `docs/parts/`, never from a generator) and runs the project's `scripts/netlist_checks.py` if present; run `--corrupt` once (negative control). Then compare the remaining pins by hand against the reference circuit **and** the deep-read constraint list.
 1a. **Per-resistor power check**: V²/R (or I²R) in the worst held state vs. package rating derated at `calc_ambient` — a 1 kΩ 0603 gate pull-down at 159 mW passed three readings. **Per-indicator failure case**: the LED must be visibly dark/lit in the fault it exists for (open load, blown fuse), computed with the real V_F and gain.
 1b. Duplicated parts (paralleled FETs, extra channels): re-run the paralleling checks (own gate resistor per device, current sharing, sense). Placeholders marked "finalised in schematic" are recomputed now.
 2. Write the deviation list (pin, reference value, actual, reason); fix or justify.
@@ -138,7 +138,7 @@ Documentation
 
 - [ ] Independent audit of the release candidate done **before** the first order tag; premises checked against the board.
 - [ ] ERC and DRC clean (reports in `production/rev<X>/`); stale-value lint clean; **claims pass** done (`lint_stale_values.py --claims`: each listed sentence traced to a C-nn or a measurement).
-- [ ] Outputs up to date: generators re-run, no diff under `hardware/`; schematic ↔ board field parity after regeneration.
+- [ ] If the project has generators: re-run, no diff under `hardware/`, schematic ↔ board parity.
 - [ ] Export chain outputs complete; CPL includes THT parts; rotations checked in JLC preview; table updated.
 - [ ] BOM: every line LCSC + live category + live assembly type + stock ≥ `quantity` × qty + attrition; thin parts flagged; extended and standard-only parts listed with reasons; Basic/Preferred/Extended and standard-only counts in README.
 - [ ] Hand-assembled parts (if any) with their plan and cost in README.

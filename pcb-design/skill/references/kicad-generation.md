@@ -99,9 +99,9 @@ fixing the code. Measured checks beat ticked checklists ("C13–C15 at
 
 **Generators and the routed board drift.** Once routing has started,
 the routed board is the reference: every change goes into the
-generator tables **and** the board, and `scripts/regenerate.sh` +
-`git diff` on `hardware/` must be clean before any tag
-(`export_production.sh` enforces this when the hook exists). A parity
+generator tables **and** the board, and a regeneration + `git diff` on
+`hardware/` must be clean before any tag (`export_production.sh` runs
+`scripts/regenerate.sh` and checks this when the project has one). A parity
 check on a stale schematic proves nothing.
 
 **Autorouter leftovers.** On dense boards Freerouting leaves 1–3
@@ -124,14 +124,13 @@ vendor assemblies may carry hidden offsets). After import check
 pin-on-pad, F.Fab outline and seating plane/height against the
 datasheet. EasyEDA models in particular: z offset is not the seating
 height, DIP rotation sense can be inverted, 0.3 mm lateral offsets and
-thin connector tails occur — keep a per-model alignment table in the
-library build and have the owner look at side and top renders. Thin or
+thin connector tails occur — keep the offset/rotation per model in
+`lib/manifest.json` and have the owner look at side and top renders. Thin or
 odd-looking tails are a hint that nobody has measured the real part.
 Placeholder boxes only when listed with their dimensions.
 
 ## Fetching datasheets
 
-Datasheets:
-`scripts/lcsc_detail.py <Cxxxxx>` returns parameters and the datasheet
-URL; `scripts/pdf_grep.sh <pdf> <pattern>` prints matching page
+`scripts/jlc_search.py <Cxxxxx> --datasheet docs/datasheets` downloads
+the PDF; `scripts/pdf_grep.sh <pdf> <pattern>` prints matching page
 numbers for citations in `docs/parts/`.

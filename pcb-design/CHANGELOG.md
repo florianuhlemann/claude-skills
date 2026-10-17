@@ -1,5 +1,12 @@
 # pcb-design skill — changelog
 
+## 0.6.0 — 2026-10-17
+Trim. The rules and the script set are unchanged; SKILL.md is half the size.
+- `SKILL.md` cut to roughly half: one sentence per rule, details and checklists only in `references/`; the incidents behind the rules moved to `references/lessons-learned.md` ("The stories behind the rules").
+- All fifteen scripts stay in the bundle; `scripts/README.md` lists them by gate and names the project files each one reads. The project structure in SKILL.md now shows those files (`lib/manifest.json`, `lib/lib_patches.py`, `lib/silk-kinds.json`, `docs/netlist-expect.json`, `hardware/drc-allowlist.txt`).
+- Dangling references removed (`lcsc_detail.py`, the list of unshipped project scripts); checklists and `kicad-generation.md` no longer name the moved scripts.
+- `CHANGELOG.md` moved out of the bundle (this file); the skill zip no longer carries the history.
+
 ## 0.5.0 — 2026-10-17
 Self-contained: a fresh account/machine no longer needs scripts from earlier projects.
 - New `scripts/preflight.sh` (step 0): required/optional tools, JLC API reachability, every self-test, project files.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.5
+# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.6
 #
 # Usage: export_production.sh <project-dir> <rev>
 #   project-dir contains hardware/<name>.kicad_pro|.kicad_sch|.kicad_pcb,
