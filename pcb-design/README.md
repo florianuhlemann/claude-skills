@@ -14,6 +14,6 @@ Gated workflow for designing PCBs in KiCad 10 for JLCPCB fabrication and economi
 - [`skill/references/`](skill/references/): JLCPCB rules, calculations, checklists, doc templates, lessons learned.
 - [`skill/scripts/`](skill/scripts/): lint and export scripts, documented in [`scripts/README.md`](skill/scripts/README.md).
 - [`skill/assets/`](skill/assets/): KiCad design rules file and rotation corrections.
-- [`skill/CHANGELOG.md`](skill/CHANGELOG.md)
+- [`CHANGELOG.md`](CHANGELOG.md)
 
 The `.skill` file is a zip of the `skill/` folder.

@@ -1,5 +1,21 @@
 # pcb-design skill — changelog
 
+## 0.6.0 — 2026-10-17
+Trim. The rules and the script set are unchanged; SKILL.md is half the size.
+- `SKILL.md` cut to roughly half: one sentence per rule, details and checklists only in `references/`; the incidents behind the rules moved to `references/lessons-learned.md` ("The stories behind the rules").
+- All fifteen scripts stay in the bundle; `scripts/README.md` lists them by gate and names the project files each one reads. The project structure in SKILL.md now shows those files (`lib/manifest.json`, `lib/lib_patches.py`, `lib/silk-kinds.json`, `docs/netlist-expect.json`, `hardware/drc-allowlist.txt`).
+- Dangling references removed (`lcsc_detail.py`, the list of unshipped project scripts); checklists and `kicad-generation.md` no longer name the moved scripts.
+- `CHANGELOG.md` moved out of the bundle (this file); the skill zip no longer carries the history.
+
+## 0.5.0 — 2026-10-17
+Self-contained: a fresh account/machine no longer needs scripts from earlier projects.
+- New `scripts/preflight.sh` (step 0): required/optional tools, JLC API reachability, every self-test, project files.
+- Promoted from the two project repos: `jlc_search.py` (+ assembly type column, `--economic`, `--datasheet` download, loud manual fallback), `sexpr.py`, `drc_gate.py` (kicad-cli ignores project DRC exclusions → allowlist with justifications, stale entries fail), `sync_models.py` (`--lib`, `--graphics`).
+- Generalized and promoted: `build_lib.py` (driven by `lib/manifest.json` + `lib/lib_patches.py`; renames require a "checked" note; self-test), `fp_silk.py` (kinds inferred with `lib/silk-kinds.json` overrides, library discovered, synthetic self-test), `audit_netlist.py` (pin map in `docs/netlist-expect.json`, project checks module, `--corrupt` negative control, self-test).
+- `export_production.sh`: DRC as JSON + report, gated by `drc_gate.py` when `hardware/drc-allowlist.txt` exists.
+- `lint_stale_values.py`: `docs/history/` exempt.
+- SKILL.md: step 0 preflight; library build, silk and netlist-audit workflow named explicitly; DRC allowlist rule. `scripts/README.md` rewritten by gate; project tooling listed as not shipped.
+
 ## 0.4.0 — 2026-10-17
 From the second board's retrospective (gate 1 → v0.6.2, three audits, no wiring errors — all rework was context, mechanics and claims).
 - **Single-fault table mandatory** for every power path at gate 1 even when the full FMEA is declined (switch shorts/opens, load back-drives, fuse on its curve, input reversed); gate-1 question on per-channel indication.

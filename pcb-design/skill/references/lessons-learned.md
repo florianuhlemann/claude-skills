@@ -94,3 +94,57 @@ keep-outs before routing, finisher instead of reruns, 45°-safe via
 nudging; outputs-up-to-date hook; audit before the first order tag;
 claims pass; designator ranges fixed with a self-test; layer list from
 the board; hand-fit BOM split; README hero render.
+
+## The stories behind the rules
+
+Each line is the incident that produced a rule in `SKILL.md`; the rule
+itself is stated there in one sentence.
+
+- **Single-fault table even when the FMEA is declined** — a declined
+  FMEA left one project with a back-driven motor pushing current into
+  FET body diodes and a fuse whose rating covered none of the fault
+  currents.
+- **Per-channel-indication question at gate 1** — a "total current"
+  requirement hid an expected one-LED-per-channel; found at the audit.
+- **Fitted vendor's datasheet** — an ST op-amp was designed to a TI
+  sentence from a "pin-compatible" datasheet; input range vs. V+ differed.
+- **Thermal figures name their copper condition** — a datasheet R_θJA
+  for 1 in² of 2 oz and a JEDEC 4L board were used on a 107 mm² 1 oz 2L
+  board.
+- **Resistance budget includes pin fan-out and reliefs** — a 0.4 ×
+  2.35 mm thread feeding a buck VIN passed the pour-to-pour estimate.
+- **Per-resistor power check** — a 1 kΩ 0603 gate pull-down at 159 mW
+  passed three readings.
+- **Decoupling distance measured, not ticked** — "1–2 mm" was claimed
+  for four revisions while it was 6 mm.
+- **Hand-fitted parts measured in hand** — XT30 tails of 1.55–1.59 mm
+  were given a 1.7 mm hole from the drawing; WAGO square pins need the
+  diagonal; "cosmetic" model disagreements were the first hint.
+- **Placement review before routing** — 27 of 41 two-pin parts had
+  traces leaving ≥ 60° off the pad axis because rotations came from the
+  schematic and the autorouter routed around them.
+- **Lints with positive self-test cases** — the first entry-angle lint
+  folded the angle (backwards counted as axial), skipped IC pins, GND
+  and unnumbered pads, and hid in-pad bends behind a minimum-length
+  filter; the owner saw every miss at a glance.
+- **Silk revision equals the tag** — a docs-only release shipped with
+  the previous revision on the silk.
+- **Designator ranges in the CPL** — `R1-R5` in the BOM silently dropped
+  16 parts from the placement file.
+- **Independent audit before the first order tag** — three audits after
+  three tags, merged into one, would have saved two releases.
+- **Check audit premises first** — six findings quoted a fab minimum of
+  0.16 mm (JLC: 0.2 mm), another part's drawing, and necks that did not
+  exist in the fill.
+- **Schematic gate held separately in reworks** — schematic and layout
+  changes presented together let a wiring change through unreviewed.
+- **kicad-cli ignores project DRC exclusions** — tested on KiCad 10;
+  hence the allowlist file and `drc_gate.py`.
+- **Display module in every audit** — not JLC-placeable, no mount,
+  supply window outside the rail: the UI-part rule at gate 2.
+- **Value changed in four of seven documents** — R_REF "1 kΩ" survived
+  in places after the change to 1.2 kΩ: `key-values.md` and the
+  stale-value lint.
+- **A "passing" check that checked nothing** — a zone script died in a
+  pipe, DRC ran on the old board and reported 0 violations: verify the
+  verifier, verify the edit in the file.
