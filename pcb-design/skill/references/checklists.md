@@ -76,8 +76,8 @@ Documentation
 
 ## Self-audit (mandatory before each gate)
 
-1. Export the netlist; for each active component compare pin by pin against the reference circuit **and** the deep-read constraint list.
-1a. **Per-resistor power check**: V²/R (or I²R) in the worst held state vs. package rating derated at `calc_ambient` — a 1 kΩ 0603 gate pull-down at 159 mW passed three readings. **Per-indicator failure case**: the LED must be visibly dark/lit in the fault it exists for (open plug, blown fuse), computed with the real V_F and gain.
+1. Export the netlist; `audit_netlist.py` checks every pin in `docs/netlist-expect.json` (written from the datasheet summaries, independently of any generator) and runs `scripts/netlist_checks.py`; run `--corrupt` once (negative control). Then compare the remaining pins by hand against the reference circuit **and** the deep-read constraint list.
+1a. **Per-resistor power check**: V²/R (or I²R) in the worst held state vs. package rating derated at `calc_ambient` — a 1 kΩ 0603 gate pull-down at 159 mW passed three readings. **Per-indicator failure case**: the LED must be visibly dark/lit in the fault it exists for (open load, blown fuse), computed with the real V_F and gain.
 1b. Duplicated parts (paralleled FETs, extra channels): re-run the paralleling checks (own gate resistor per device, current sharing, sense). Placeholders marked "finalised in schematic" are recomputed now.
 2. Write the deviation list (pin, reference value, actual, reason); fix or justify.
 3. Re-run the safety argument if any value in it changed.
@@ -130,7 +130,8 @@ Documentation
 - [ ] Silkscreen: name/rev/date, connector labels, pin 1, polarity, user controls, **test points by function**, text ≥ 1.0 mm, nothing over pads.
 - [ ] Real 3D models everywhere; placeholders listed and resolved before the production tag.
 - [ ] Scripted edits verified in the file (counts, grep) before DRC.
-- [ ] DRC with `jlcpcb-4layer.kicad_dru`: zero errors, all severities reviewed.
+- [ ] DRC with `jlcpcb-4layer.kicad_dru`: zero errors; every remaining warning listed in `hardware/drc-allowlist.txt` with its justification (`drc_gate.py` passes, no stale entries).
+- [ ] `fp_silk.py check` clean; silk markers counted per footprint after any clean-up.
 - [ ] Economic-PCBA side/THT/standoff rules verified against JLC's current page.
 
 ## Handover checklist (production gate)

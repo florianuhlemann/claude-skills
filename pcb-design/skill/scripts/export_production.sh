@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.4
+# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.5
 #
 # Usage: export_production.sh <project-dir> <rev>
 #   project-dir contains hardware/<name>.kicad_pro|.kicad_sch|.kicad_pcb,
@@ -54,9 +54,21 @@ kicad-cli sch erc --severity-all --exit-code-violations \
   || { echo "ERC violations — fix before exporting"; exit 1; }
 
 echo "== DRC"
-kicad-cli pcb drc --severity-all --exit-code-violations --refill-zones --save-board \
-  --schematic-parity --format report --output "$OUT/drc.rpt" "$PCB" \
-  || { echo "DRC violations (any severity) — fix or downgrade with written justification"; exit 1; }
+# kicad-cli 10 does not apply the .kicad_pro DRC exclusions (tested 2026-10-16): justified warnings live in
+# hardware/drc-allowlist.txt ("<type>|<item description> # reason -> design-notes §") and drc_gate.py enforces it.
+kicad-cli pcb drc --severity-all --refill-zones --save-board --schematic-parity \
+  --format json --output "$OUT/drc.json" "$PCB" >/dev/null || true
+kicad-cli pcb drc --severity-all --schematic-parity --format report --output "$OUT/drc.rpt" "$PCB" >/dev/null || true
+if [ -f "$HW/drc-allowlist.txt" ]; then
+  python3 "$SCRIPTS/drc_gate.py" "$OUT/drc.json" "$HW/drc-allowlist.txt" \
+    || { echo "DRC gate failed — fix, or justify the warning in hardware/drc-allowlist.txt"; exit 1; }
+else
+  python3 - "$OUT/drc.json" <<'PY' || { echo "DRC violations — fix, or create hardware/drc-allowlist.txt with justified warnings"; exit 1; }
+import json, sys
+d = json.load(open(sys.argv[1])); n = len(d.get("violations", [])) + len(d.get("unconnected_items", [])) + len(d.get("schematic_parity", []))
+print(f"DRC: {n} violation(s)"); sys.exit(1 if n else 0)
+PY
+fi
 
 echo "== Gerbers"
 GERB="$OUT/gerbers"; mkdir -p "$GERB"

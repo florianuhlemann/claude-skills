@@ -24,6 +24,7 @@ SCAN_GLOBS = ["docs/**/*.md", "production/**/*.md", "README.md",
               "hardware/**/*.kicad_sch", "hardware/**/*.kicad_pcb"]
 # CHANGELOG.md and the retrospective keep superseded values on purpose.
 SKIP_FILES = {"CHANGELOG.md", "docs/retrospective.md", "docs/key-values.md"}
+SKIP_DIRS = ("docs/history/",)   # verbatim gate logs keep superseded values on purpose
 # Lines that deliberately quote history are exempt.
 HISTORY = re.compile(r"\b(was|were|until rev|previously|superseded|history)\b|→|\(history\)|\brev 0\.\d", re.I)
 
@@ -84,7 +85,8 @@ def main(argv):
     hits = 0
     for g in SCAN_GLOBS:
         for f in proj.glob(g):
-            if f == kv or str(f.relative_to(proj)) in SKIP_FILES:
+            rel = str(f.relative_to(proj))
+            if f == kv or rel in SKIP_FILES or rel.startswith(SKIP_DIRS):
                 continue
             try:
                 text = f.read_text(encoding="utf-8", errors="ignore")

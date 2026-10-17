@@ -2,7 +2,7 @@
 name: pcb-design
 description: House rules for designing printed circuit boards in KiCad 10 for JLCPCB fabrication and economic assembly — gated workflow (requirements → architecture → datasheet deep read → schematic → library → layout → production → retrospective), project parameters, 4-layer stackup, via/stitching rules, LCSC sourcing with live category and stock checks, project-local library, single-source key values, calculations and FMEA, kicad-cli ERC/DRC/export chain, 3D renders. Use this skill whenever the user mentions a PCB, circuit board, schematic, KiCad, JLCPCB, LCSC, footprint, gerber, BOM, stackup, layout, routing, or asks to "design a circuit/board for…", even if only a component, module, or MCU is named and the word "PCB" never appears. Also use it when reviewing, auditing, fixing, or preparing an existing KiCad project for production, and when writing a project retrospective for a board. Enclosure/case CAD design is out of scope — the skill only collects the mechanical constraints a board must respect.
 metadata:
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # PCB design (KiCad 10 → JLCPCB)
@@ -22,7 +22,9 @@ production chain. It does not own enclosure/case design (the board
 delivers a STEP and its mechanical constraints; the case is someone
 else's job), firmware, or project-specific generators — those live in
 the project repo. `references/lessons-learned.md` has the history; read
-it once per project.
+it once per project. **Step 0 of every project: `bash scripts/preflight.sh`**
+— it reports which tools and helpers exist on this machine and what the
+skill does without each (every shipped script also self-tests there).
 
 ## Project parameters (set at gate 1, live in `docs/requirements.md`)
 
@@ -110,7 +112,11 @@ times rework at the schematic.
    (grid, escaping, deterministic UUIDs). ERC via `kicad-cli`, zero
    errors. Pre-layout checklist (guideline, documented). **Self-audit**
    = reference circuit **and** deep-read constraints, pin by pin
-   against the exported netlist, **with a per-resistor power check**
+   against the exported netlist — `scripts/audit_netlist.py` with the
+   pin map in `docs/netlist-expect.json` (written from `docs/parts/`,
+   never from the generator) and the project's value checks in
+   `scripts/netlist_checks.py`; `--corrupt` is the negative control —
+   **with a per-resistor power check**
    (V²/R vs. package rating at `calc_ambient`); placeholders marked
    "finalised in schematic" are recomputed now; a duplicated part
    re-runs the paralleling checks. Safety analysis if the parameter says
@@ -146,7 +152,9 @@ times rework at the schematic.
    manual routing of power loops, RF, matched groups and FMEA-relevant
    nets (it never rotates a part). DRC with
    `assets/jlcpcb-4layer.kicad_dru`, all severities reported, zero
-   errors; `check_entry_angles.py` and `check_track_geometry.py` run and
+   errors; justified warnings go into `hardware/drc-allowlist.txt`
+   (kicad-cli ignores the project's DRC exclusions — `drc_gate.py`
+   enforces the list and fails on stale entries); `check_entry_angles.py` and `check_track_geometry.py` run and
    their lists reviewed. ⏸ *Renders (top/bottom/iso) + DRC + resistance
    budget + measured decoupling distances + skew table + lint lists
    with justifications.*
@@ -197,20 +205,27 @@ times rework at the schematic.
 
 ## Component sourcing and project library
 
-- Search via `scripts/jlc_search.py` (JLC parts API). If it fails,
-  search manually on jlcpcb.com/parts and record the result — do not
-  stop.
+- Search via `scripts/jlc_search.py` (JLC parts API; shows category,
+  assembly type, stock, price; `--datasheet docs/datasheets` downloads
+  the PDF). If the API is unreachable (preflight says so), search
+  manually on jlcpcb.com/parts and record the same fields — do not stop.
 - Record per part as **symbol fields**: `LCSC`, `MPN`, `Manufacturer`,
   `JLC_Category` (live, with date), `JLC_Assembly` (Economic / Standard
   only, live), `Stock_at_selection`, `Datasheet`. The BOM export reads
   these fields; the production README counts standard-only parts (target 0).
 - Extended parts: list with reason in design notes; count
   Basic/Preferred/Extended in the production README.
-- Project library only: symbols copied from KiCad's stock libs with
-  `extends` resolved, footprints validated, 3D models via `${KIPRJMOD}`
-  (`scripts/build_lib.py`). Hand-made footprints: render the datasheet
-  drawing (`pdftoppm`), read the numbers, write the source into the
-  footprint description.
+- Project library only, built by `scripts/build_lib.py` from
+  `lib/manifest.json` (stock symbols with `extends` resolved, renames
+  only with a "checked against datasheet table" note, stock footprints
+  with models moved under `${KIPRJMOD}`, exact-part models with an
+  explicit offset/rotation table); project-specific edits (hole sizes,
+  hand-made footprints) in `lib/lib_patches.py`. Then
+  `scripts/fp_silk.py lib` applies the silk convention and
+  `fp_silk.py check` lints it. Hand-made footprints: render the
+  datasheet drawing (`pdftoppm`), read the numbers, write the source
+  into the footprint description. After library changes on a routed
+  board: `sync_models.py` (pcbnew Python) and `fp_silk.py board`.
 - **Footprint silkscreen convention** (every footprint in `lib/`, incl.
   ones copied from KiCad): pin-1 marker is a **filled silk triangle
   pointing at pad 1** (KiCad stock size ≈ 0.48 × 0.33 mm), on the axis
@@ -361,4 +376,4 @@ numbers, recommend one, wait.
 - `references/kicad-generation.md` — scripted schematic/board generation pitfalls, Freerouting scope, verify-the-verifier.
 - `references/lessons-learned.md` — history; append after each retrospective.
 - `assets/jlcpcb-4layer.kicad_dru`, `assets/rotation-corrections.csv`
-- `scripts/README.md` — the seven shipped scripts and the sourcing/library helpers to import.
+- `scripts/README.md` — the fifteen shipped scripts (all self-contained; nothing to import from earlier projects) and what stays project tooling.
