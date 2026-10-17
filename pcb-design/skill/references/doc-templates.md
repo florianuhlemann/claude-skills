@@ -8,7 +8,7 @@ Keep tables terse; put reasoning in design-notes.
 ```markdown
 # <Manufacturer> <MPN> — <one-line function>
 
-- LCSC: Cxxxxx · Category: Basic / Preferred / Extended · Package: …
+- LCSC: Cxxxxx · Category: Basic / Preferred / Extended · Assembly: Economic / Standard only · Package: …
 - Datasheet: docs/datasheets/<file>.pdf (rev/date …)
 - Stock at selection: … (date)
 
@@ -52,6 +52,19 @@ Mating: <connector MPN / cable spec>
 …
 ```
 
+## Project README.md (top of the repo)
+
+```markdown
+# <board> — <one line what it does>
+![iso render](renders/rev<X>/iso.png)
+Release: v<X> · [production package](production/rev<X>/) · [changelog](CHANGELOG.md)
+
+- what it does (3–5 bullets)
+- interfaces (link to docs/interfaces.md)
+- status / open before order
+```
+The render comes first: the board is visible before any text.
+
 ## production/README.md
 
 ```markdown
@@ -59,7 +72,7 @@ Mating: <connector MPN / cable spec>
 
 Fab: JLCPCB · 4 layers · JLC04161H-7628 · 1.6 mm · 1 oz outer / 0.5 oz inner
 Mask: green · Silk: white · Finish: HASL-LF (or ENIG, reason) · Qty: 2
-Assembly: economy · side(s): … · parts: … basic / … preferred / … extended (see design-notes)
+Assembly: economic · side(s): … · parts: … basic / … preferred / … extended · standard-only: 0 (see design-notes)
 Files: gerbers.zip, bom.csv, cpl.csv, assembly.pdf, board.step, erc.rpt, drc.rpt
 Order notes: <anything typed into the order form>
 Preview checked: rotations OK for packages …
@@ -128,9 +141,10 @@ every entry in "Previous values" and fails if one is found.
 ```
 ## Audit response table
 
-| ID | Finding | Status | Fix location |
+| ID | Finding | Status | Fix location / numbers |
 |---|---|---|---|
 | A-03 | PGA CM margin 80 mV (Eq. 15) | closed | sch R7 1.2k; calculations C-04; fmea §3; key-values |
+| A-02 | use 2 oz copper, min 0.16 mm | declined | JLC 2 oz minimum is 0.2 mm; HotRod pads are 0.20 mm |
 
 ## docs/retrospective.md (after release)
 

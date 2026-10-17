@@ -1,5 +1,21 @@
 # pcb-design skill — changelog
 
+## 0.4.0 — 2026-10-17
+From the second board's retrospective (gate 1 → v0.6.2, three audits, no wiring errors — all rework was context, mechanics and claims).
+- **Single-fault table mandatory** for every power path at gate 1 even when the full FMEA is declined (switch shorts/opens, load back-drives, fuse on its curve, input reversed); gate-1 question on per-channel indication.
+- Gate 3: every thermal figure names its copper condition and is recomputed for this board's layers/copper; deep read of the **fitted vendor's** datasheet; error terms with a sign; fuse time-current curves; indicators calculated for their fault case. Gate 4 self-audit: per-resistor power check, duplicated-part paralleling re-check, placeholders recomputed; schematic gate held separately even in reworks.
+- Gate 5: hand-fitted/mating parts **measured in hand**, hole = max lead + 0.2–0.25 mm at JLC's −0.08 mm plating tolerance, diagonal for square pins, reliefs on hand-soldered pads; CPL rotation measured per LCSC part; "cosmetic" is not a closure for model/datasheet disagreement. New `Fit` symbol field.
+- New **2-layer checklist** (B.Cu keep-out around converters before routing, FB/sense/Kelvin by hand, return paths, SW distances, 2L thermal).
+- Gate 6: courtyard map for dense areas, no hand route splits a net cluster, via keep-outs under silk before routing, finisher instead of autorouter reruns, fixers move vias on 45° and never drop them, resistance budget from real fills incl. pin fan-out and thermal reliefs, lints justified item by item, silk markers counted before/after clean-up.
+- Gate 7: independent audit **before** the first order tag; **claims pass** (`lint_stale_values.py --claims`); `export_production.sh` runs `scripts/regenerate.sh` and fails on any diff under `hardware/`, reads the copper layer list from the board (2L/4L), splits the BOM into JLC and hand-fit, disables reference ranges; `production/README.md` and project README with the isometric render first.
+- Gate 8: audit premises checked against the board before acting; "declined with numbers" is a status.
+- `fix_cpl_rotation.py`: designator ranges (`R1-R5`) expanded — the old filter silently dropped 16 parts; `--self-test` added.
+- `jlcpcb-rules.md`: PTH tolerance, 2 oz minimum 0.2 mm. `kicad-generation.md`: EasyEDA model offsets/rotation, generator↔board drift rule, autorouter leftovers. `lessons-learned.md`: board 2.
+- Project tooling, not shipped: `finish_route.py`, `exit_fix.py`, via nudging, mesh solver, `regenerate.sh` (the hook is generic; the script is per project).
+
+## 0.3.1 — 2026-10-16
+- Per-part **assembly type** (Economic & Standard vs. Standard only) added as the third live check beside category and stock: one standard-only part forces the whole board to standard PCBA, so it is resolved at gate 2. New symbol field `JLC_Assembly`; parts summary, production README, checklists and `stock_check.py` spec updated; `componentProductType` noted as an observed API field, not a documented mapping.
+
 ## 0.3.0 — 2026-10-16
 From the first board's retrospective (v1.0 → v1.1.1), proposals S-1 … S-18.
 - `check_entry_angles.py` rebuilt around the rule's purpose: R1 two-pin exits **outward** ≤ 45° (angle no longer folded — backwards exits flagged; exact 45° accepted), R2 IC/connector pins along the pad's long axis turning outside the pad, GND included, end-of-row free side allowed, R3 no bend inside a pad and round pads entered through the centre; exits evaluated on the segment crossing the pad outline (no min-length filter); KiCad 10 string nets; unnumbered paste/NPTH pads ignored; one positive self-test case per real miss (R11, U3 GND, TP2, R12 at 45°). (S-1, S-2, S-7, S-14, S-15, S-16)

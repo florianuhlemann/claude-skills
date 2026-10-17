@@ -57,3 +57,40 @@ paths with resistance budget and per-segment net classes; key-values
 table with stale-value lint; firmware brief from gate 3; deterministic
 UUIDs; verify-the-verifier; `main` + tags from day one; retrospective
 as the last phase.
+
+## Board 2 (2026-10-16/17, six tags before the first build)
+
+2L 1 oz, buck + paralleled FETs driving high-current heater loads and a motor,
+hand-fitted XT30/WAGO, commercial-grade op-amps, FMEA declined.
+
+**Numbers:** three audits, 51 findings, no wiring error in any of them;
+the rework was thermal assumptions, layout, production data,
+connectors, and documentation claims. Six audit premises were wrong
+and were declined with numbers.
+
+**Late catches and their pattern:** requirement/safety questions a
+one-page single-fault table would have asked (back-driven motor, a
+fuse that covered nothing, per-channel LEDs) · numbers from the wrong
+context (R_θJA for other copper, JEDEC 4L on a 2L board, a TI sentence
+for an ST part, error terms without sign, a 1 kΩ 0603 at 159 mW) ·
+layout done the autorouter's way (FB/sense on B.Cu slotting the only
+plane, a 0.4 mm thread into the buck VIN, SW bridge under C_IN) ·
+production and mechanical data trusted from tables and drawings (CPL
+rotations, XT30 tails 1.55–1.59 mm vs. a 1.7 mm hole, WAGO square-pin
+diagonal, 16 parts silently dropped by a designator-range bug).
+
+**What worked:** single sources of truth that reproduced a full
+re-route; measured checks (fills-based resistance budget, mesh solver,
+111-check netlist audit with negative control, transient simulation);
+checking audit premises before acting; the owner's render review and
+the owner's measurements; a README with the isometric render first.
+
+**Resulting skill changes (v0.4.0):** mandatory single-fault table;
+per-channel-indication question; thermal figures with copper
+condition; fitted-vendor deep read; signed error terms; fuse curves;
+per-resistor power and indicator fault-case checks; measured
+hand-fitted parts and holes at plating tolerance; 2-layer checklist;
+keep-outs before routing, finisher instead of reruns, 45°-safe via
+nudging; outputs-up-to-date hook; audit before the first order tag;
+claims pass; designator ranges fixed with a self-test; layer list from
+the board; hand-fit BOM split; README hero render.

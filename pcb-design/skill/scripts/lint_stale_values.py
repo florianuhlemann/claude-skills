@@ -2,7 +2,13 @@
 """Fail if any 'Previous values' entry from docs/key-values.md still occurs
 in the project's documentation or schematic text.
 
-Usage: lint_stale_values.py <project-dir> [--also <extra-regex>]...
+Usage: lint_stale_values.py <project-dir> [--also <extra-regex>]... [--claims]
+
+--claims: instead of the stale check, list every documentation sentence
+that states a protection, distance, direction or coverage ("covers",
+"protects", ">= x mm", "within", "shortens", "independent of", "never",
+"cannot") with file:line, for the claims pass before a tag — each one is
+traced to a calculation (C-nn) or a measurement, or rewritten.
 
 key-values.md table columns: Key | Current value | Previous values | Where used | Calc
 Previous values are split on ';' or ','. Short/ambiguous tokens (< 3 chars)
@@ -37,10 +43,33 @@ def previous_values(kv_path: Path):
     return toks
 
 
+CLAIMS = re.compile(r"\b(covers?|protects?|prevents?|guarantees?|ensures?|independent of|never|cannot|"
+                    r"always|within|at least|shortens?|lengthens?|increases?|decreases?|no (?:risk|effect))\b"
+                    r"|[≥≤<>]\s*\d|\d+(?:\.\d+)?\s*mm\b", re.I)
+
+
+def claims(proj: Path):
+    n = 0
+    for g in ("docs/**/*.md", "production/**/*.md", "README.md"):
+        for f in sorted(proj.glob(g)):
+            if str(f.relative_to(proj)) in SKIP_FILES or f.name == "retrospective.md":
+                continue
+            for i, line in enumerate(f.read_text(encoding="utf-8", errors="ignore").splitlines(), 1):
+                if line.startswith("|") or line.startswith("#") or len(line) < 25:
+                    continue
+                if CLAIMS.search(line) and not re.search(r"\bC-\d+\b|measured|see key-values", line):
+                    print(f"{f.relative_to(proj)}:{i}: {line.strip()[:140]}")
+                    n += 1
+    print(f"\n{n} untraced claim(s): add a C-nn reference, 'measured …', or rewrite")
+    return 0
+
+
 def main(argv):
     if not argv:
         print(__doc__); return 2
     proj = Path(argv[0]); extra = []
+    if "--claims" in argv:
+        return claims(proj)
     i = 1
     while i < len(argv):
         if argv[i] == "--also" and i + 1 < len(argv):

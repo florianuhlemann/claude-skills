@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.3
+# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.4
 #
 # Usage: export_production.sh <project-dir> <rev>
 #   project-dir contains hardware/<name>.kicad_pro|.kicad_sch|.kicad_pcb,
@@ -35,6 +35,15 @@ if git -C "$PROJ" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   fi
 fi
 
+echo "== Outputs up to date (generators)"
+if [ -x "$PROJ/scripts/regenerate.sh" ]; then
+  "$PROJ/scripts/regenerate.sh" || { echo "regenerate.sh failed"; exit 1; }
+  if git -C "$PROJ" rev-parse --is-inside-work-tree >/dev/null 2>&1 && [ -n "$(git -C "$PROJ" status --porcelain -- hardware)" ]; then
+    echo "regeneration changed files under hardware/ — generators and board have drifted; reconcile before tagging"
+    git -C "$PROJ" status --porcelain -- hardware; exit 1
+  fi
+fi
+
 echo "== Revision consistency"
 grep -L "rev *$REV\|Rev *$REV\|$REV" "$HW"/*.kicad_sch "$PCB" 2>/dev/null | while read -r f; do
   echo "WARNING: '$REV' not found in $f (title block / silk?)"; done
@@ -51,8 +60,12 @@ kicad-cli pcb drc --severity-all --exit-code-violations --refill-zones --save-bo
 
 echo "== Gerbers"
 GERB="$OUT/gerbers"; mkdir -p "$GERB"
+# copper layer list from the board itself (2L boards have no In*.Cu)
+INNER="$(grep -oE '"In[0-9]+\.Cu"' "$PCB" | tr -d '"' | sort -t n -k 2 -n -u | paste -sd, -)"
+LAYERS="F.Cu,${INNER:+$INNER,}B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts"
+echo "   layers: $LAYERS"
 kicad-cli pcb export gerbers \
-  --layers "F.Cu,In1.Cu,In2.Cu,B.Cu,F.Paste,B.Paste,F.Silkscreen,B.Silkscreen,F.Mask,B.Mask,Edge.Cuts" \
+  --layers "$LAYERS" \
   --subtract-soldermask --use-drill-file-origin --no-x2 --no-netlist \
   --output "$GERB/" "$PCB"
 
@@ -65,10 +78,27 @@ kicad-cli pcb export drill --format excellon --excellon-separate-th \
 
 echo "== BOM"
 kicad-cli sch export bom \
-  --fields 'Reference,Value,Footprint,LCSC,MPN,Manufacturer,JLC_Category,${QUANTITY}' \
-  --labels "Designator,Value,Footprint,LCSC Part #,MPN,Manufacturer,Category,Quantity" \
-  --group-by "Value,Footprint,LCSC" --exclude-dnp \
-  --output "$OUT/bom.csv" "$SCH"
+  --fields 'Reference,Value,Footprint,LCSC,MPN,Manufacturer,JLC_Category,JLC_Assembly,Fit,${QUANTITY}' \
+  --labels "Designator,Value,Footprint,LCSC Part #,MPN,Manufacturer,Category,Assembly,Fit,Quantity" \
+  --group-by "Value,Footprint,LCSC" --exclude-dnp --ref-range-delimiter "" \
+  --output "$OUT/bom_all.csv" "$SCH"
+# split: Fit == hand -> bom_handfit.csv (owner solders), rest -> bom.csv (JLC places)
+python3 - "$OUT" <<'PY'
+import csv, sys, pathlib
+out = pathlib.Path(sys.argv[1]); rows = list(csv.DictReader(open(out/"bom_all.csv", newline="", encoding="utf-8")))
+fn = rows[0].keys() if rows else []
+hand = [r for r in rows if (r.get("Fit") or "").strip().lower() == "hand"]
+jlc = [r for r in rows if r not in hand]
+for name, rs in (("bom.csv", jlc), ("bom_handfit.csv", hand)):
+    with open(out/name, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=fn); w.writeheader(); w.writerows(rs)
+std = [r["Designator"] for r in jlc if "standard" in (r.get("Assembly") or "").lower() and "economic" not in (r.get("Assembly") or "").lower()]
+print(f"   JLC lines: {len(jlc)}  hand-fit lines: {len(hand)}  standard-only: {len(std)} {std if std else ''}")
+PY
+
+echo "== Claims pass (trace each line to a C-nn or a measurement before tagging)"
+python3 "$SCRIPTS/lint_stale_values.py" "$PROJ" --claims > "$OUT/claims_to_trace.txt" || true
+tail -n 1 "$OUT/claims_to_trace.txt"
 
 echo "== Layout lints (reviewed at the gate; reports kept with the package)"
 python3 "$SCRIPTS/check_entry_angles.py" "$PCB" > "$OUT/lint_pad_exits.txt" || true

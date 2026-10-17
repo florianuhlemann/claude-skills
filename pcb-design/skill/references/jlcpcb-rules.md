@@ -16,6 +16,8 @@ Never state a part category or a fee from memory.
 | Min trace / clearance | 0.127 / 0.127 mm design default | JLC allows ~0.09 mm on multilayer; use only for escapes, after checking. |
 | Via default / minimum | 0.3/0.6 mm · 0.3/0.45 mm | Pad ≥ hole + 0.1 mm (0.15 preferred). Hole < 0.3 mm with pad ≤ 0.4 mm costs extra; this skill never goes below 0.3 mm hole. |
 | Hole to hole | ≥ 0.5 mm | |
+| PTH finished-hole tolerance | about −0.08 / +0.13 mm | Size hand-fitted holes against the **minimum**: measured lead + 0.2–0.25 mm. |
+| 2 oz copper min trace/space | 0.2 mm (8 mil), not 0.16 | An audit quoted 0.16 mm; check the capabilities page before accepting a copper-weight change. |
 | Copper to edge | ≥ 0.3 mm (0.5 mm default) | |
 | Hole to edge | ≥ 0.5 mm | |
 | Solder mask dam | ≥ 0.2 mm (green) | Stay green. |
@@ -47,6 +49,21 @@ Never state a part category or a fee from memory.
   can change — read the SMT page.
 
 ## Parts and categories
+
+Three independent properties per part, all checked live on the parts
+page (jlcpcb.com/parts) and recorded with the date:
+1. **Category** — Basic / Preferred extended / Extended (fees).
+2. **Stock** — against `quantity` × per-board count + attrition.
+3. **Assembly type** — "Economic & Standard" or **"Standard only"**.
+   Economic PCBA cannot place a standard-only part at all; a single one
+   on the BOM forces the whole order to standard PCBA (higher setup
+   and per-board cost, different side/THT rules). Treat a standard-only
+   part like an extended part: replace it, or accept standard assembly
+   for the board explicitly at gate 2 with the cost noted. The JLC
+   parts API exposes this as a `componentProductType` field — in one
+   project the value `2` appeared on a standard-only part (working
+   hypothesis, not documented by JLC); `jlc_search.py` should surface
+   the field, and the parts-page label is the authority.
 
 - **Basic**: no setup fee. **Preferred extended**: fee waived.
   **Extended**: setup fee per reel per order (fee structure changed

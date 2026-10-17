@@ -97,6 +97,20 @@ a person catches a miss, add it as a positive self-test case before
 fixing the code. Measured checks beat ticked checklists ("C13–C15 at
 1–2 mm" survived four revisions at 6 mm).
 
+**Generators and the routed board drift.** Once routing has started,
+the routed board is the reference: every change goes into the
+generator tables **and** the board, and `scripts/regenerate.sh` +
+`git diff` on `hardware/` must be clean before any tag
+(`export_production.sh` enforces this when the hook exists). A parity
+check on a stale schematic proves nothing.
+
+**Autorouter leftovers.** On dense boards Freerouting leaves 1–3
+connections open or shorted on every run and is not deterministic.
+Do not rerun and hope: finish the leftovers with a deterministic
+finisher (grid A* with an exact clearance re-check) or by hand, with
+keep-outs set first. Every fixer that touches vias moves them on the
+45° grid and never deletes one.
+
 Re-orienting parts after routing is expensive but local: ~30 scripted
 edit batches with DRC after each, netlist untouched; the hard spots are
 where bottom-layer signals already claimed the via positions.
@@ -108,7 +122,12 @@ Order: KiCad's packaged models → LCSC/EasyEDA for the exact part
 vendor STEP (403 for `curl`; fetch in the browser or ask the user;
 vendor assemblies may carry hidden offsets). After import check
 pin-on-pad, F.Fab outline and seating plane/height against the
-datasheet. Placeholder boxes only when listed with their dimensions.
+datasheet. EasyEDA models in particular: z offset is not the seating
+height, DIP rotation sense can be inverted, 0.3 mm lateral offsets and
+thin connector tails occur — keep a per-model alignment table in the
+library build and have the owner look at side and top renders. Thin or
+odd-looking tails are a hint that nobody has measured the real part.
+Placeholder boxes only when listed with their dimensions.
 
 ## Fetching datasheets
 

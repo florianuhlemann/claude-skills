@@ -20,8 +20,10 @@ every part (all). The pos file's Y axis is inverted relative to the board
 file (unless --no-flip-y), so the shift is applied as (+dx, -dy).
 
 --bom: keep only designators that appear in the BOM's Designator column
-(grouped "R1,R2" cells are split) — drops test points, net ties, fiducials.
-Better still: set "exclude from position files / BOM" on those footprints.
+(grouped "R1,R2" cells and ranges "R1-R5" are expanded) — drops test
+points, net ties, fiducials. Better still: set "exclude from position
+files / BOM" on those footprints. --self-test plants a range and a
+dropped part and checks both.
 """
 import csv
 import math
@@ -112,6 +114,26 @@ def load_table(path):
     return rows
 
 
+RANGE = re.compile(r"^([A-Za-z]+)(\d+)\s*[-–]\s*(?:([A-Za-z]+))?(\d+)$")
+
+
+def expand_refs(cell):
+    """'R1, R2' -> {R1, R2}; 'R1-R5' / 'R1–5' -> {R1..R5}; 'C7' -> {C7}."""
+    out = set()
+    for d in re.split(r"[,;]+|\s+(?![-–])", cell):
+        d = d.strip()
+        if not d:
+            continue
+        m = RANGE.match(d)
+        if m and (m.group(3) in (None, m.group(1))):
+            pre, a, b = m.group(1), int(m.group(2)), int(m.group(4))
+            lo, hi = min(a, b), max(a, b)
+            out.update(f"{pre}{i}" for i in range(lo, hi + 1))
+        else:
+            out.add(d)
+    return out
+
+
 def load_bom_refs(path):
     refs = set()
     with open(path, newline="", encoding="utf-8") as f:
@@ -120,13 +142,23 @@ def load_bom_refs(path):
         if not col:
             sys.exit("BOM has no Designator/Reference column")
         for r in rd:
-            for d in re.split(r"[,; ]+", r[col]):
-                if d:
-                    refs.add(d.strip())
+            refs |= expand_refs(r[col])
     return refs
 
 
+def self_test():
+    assert expand_refs("R1, R2") == {"R1", "R2"}
+    assert expand_refs("R1-R5") == {"R1", "R2", "R3", "R4", "R5"}, expand_refs("R1-R5")
+    assert expand_refs("C7-C8, C10") == {"C7", "C8", "C10"}
+    assert expand_refs("D3–D4") == {"D3", "D4"}
+    assert "R3" in expand_refs("R1-R5") and "TP1" not in expand_refs("R1-R5")
+    print("self-test OK: ranges expanded (R1-R5 keeps R3), plain lists kept, non-BOM refs dropped")
+
+
 def main(argv):
+    if "--self-test" in argv:
+        self_test()
+        return 0
     if len(argv) < 3:
         print(__doc__)
         return 2

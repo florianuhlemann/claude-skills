@@ -2,7 +2,7 @@
 name: pcb-design
 description: House rules for designing printed circuit boards in KiCad 10 for JLCPCB fabrication and economic assembly — gated workflow (requirements → architecture → datasheet deep read → schematic → library → layout → production → retrospective), project parameters, 4-layer stackup, via/stitching rules, LCSC sourcing with live category and stock checks, project-local library, single-source key values, calculations and FMEA, kicad-cli ERC/DRC/export chain, 3D renders. Use this skill whenever the user mentions a PCB, circuit board, schematic, KiCad, JLCPCB, LCSC, footprint, gerber, BOM, stackup, layout, routing, or asks to "design a circuit/board for…", even if only a component, module, or MCU is named and the word "PCB" never appears. Also use it when reviewing, auditing, fixing, or preparing an existing KiCad project for production, and when writing a project retrospective for a board. Enclosure/case CAD design is out of scope — the skill only collects the mechanical constraints a board must respect.
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # PCB design (KiCad 10 → JLCPCB)
@@ -43,7 +43,8 @@ rule refers to these parameters, never to a hard-coded number.
 | `safety_limits` | — | yes (max test current, no-fire thresholds, isolation…) |
 | `mechanical_inputs` | — | yes — outline, hole positions, keep-outs, edge-facing ports, display mount (see gate 1) |
 | `interface_connectors` | — | yes |
-| `safety_analysis` | ask | yes, if the board can hurt someone or something |
+| `safety_analysis` | ask | yes, if the board can hurt someone or something. **A one-page single-fault table is mandatory for every power path even when the full FMEA is declined** (see Conditional: safety). |
+| `fit` per part | jlc | hand-fitted parts carry `Fit=hand` (symbol field) and are measured in hand at gate 5 |
 
 ## Fixed conventions (apply unless the project parameters say otherwise)
 
@@ -51,14 +52,14 @@ rule refers to these parameters, never to a hard-coded number.
 |---|---|
 | Tool | KiCad **10.0.7**. Use `kicad-cli` for every check and export; `source scripts/kicad_env.sh` finds it (macOS bundle path included). If a sub-command differs from what you expect, run `kicad-cli <cmd> --help`. |
 | Fab / assembly | JLCPCB, **economic PCBA**. Read `references/jlcpcb-rules.md` before part selection and before layout, then **verify on jlcpcb.com** — rules, categories and fees change (extended-part fee changed 2025-12-19; former Basic parts became Extended). Never state a category from memory: check live, record the date. |
-| Layers | `layers` parameter; 4L default, **SIG / GND / GND / SIG** on JLC's standard 4L stack. Power as pours on outer layers. GND-outside only as explicit opt-in. |
+| Layers | `layers` parameter; 4L default, **SIG / GND / GND / SIG** on JLC's standard 4L stack. Power as pours on outer layers. GND-outside only as explicit opt-in. **2L boards** follow the 2-layer checklist (`references/checklists.md`): the plane discipline 4L gives for free has to be done by hand — B.Cu keep-out around every converter before routing, FB/sense/Kelvin nets hand-routed, return paths checked, SW-to-sensitive-net distances listed. |
 | Vias | Default **0.3 mm hole / 0.6 mm pad**; minimum **0.3 / 0.45 mm**; never below 0.3 mm hole. |
 | GND stitching | ~10 mm grid; ~5 mm or λ/20 of the highest frequency (whichever smaller) around RF and along edges; a GND via at every decoupling cap. |
 | Length matching | **Only where it matters:** differential pairs (USB ±0.15 mm); clocked buses only above ~10 MHz or edge rate < 5 ns (then ±0.5 mm). A 250 kHz SPI gets no serpentines. RF lines short, 50 Ω. Record what was matched and why. |
 | Impedance | USB 90 Ω diff, RF 50 Ω, from JLC's impedance calculator for the actual stack; into net classes and `docs/design-notes.md`. |
-| Power paths | Current-carrying nets get **their own net class per segment**: wide (or pour) everywhere, necked **only** at fine-pitch pads. A resistance budget per path (mΩ vs. the source's own resistance) is calculated and checked at the layout gate. One fine-pitch pad never sets the width of a whole net. |
-| Parts | LCSC number before a part enters the schematic. Basic / Preferred first, Extended only with written justification; **category checked live**. Stock ≥ `quantity` × per-board count + attrition. **UI parts (displays, buttons, connectors) must be JLC-placeable or have a costed hand-assembly plan, and their supply window must sit inside the rail's actual range — decided at gate 2.** |
-| Temperature | `part_rating`, `operating_range`, `calc_ambient`. Battery charging within the cell datasheet window. |
+| Power paths | Current-carrying nets get **their own net class per segment**: wide (or pour) everywhere, necked **only** at fine-pitch pads. A resistance budget per path (mΩ vs. the source's own resistance) is calculated from the real fills and checked at the layout gate; it **includes the last millimetres into the IC pins and every thermal relief** — a 0.4 × 2.35 mm thread feeding a buck VIN passed the pour-to-pour estimate once. One fine-pitch pad never sets the width of a whole net. |
+| Parts | LCSC number before a part enters the schematic. Three live checks per part, none from memory: **category** (Basic / Preferred first, Extended only with written justification), **stock** ≥ `quantity` × per-board count + attrition, and **assembly type** — JLC marks each part "Economic & Standard" or "Standard only"; **one standard-only part moves the whole board to standard PCBA**, so it is replaced or the cost accepted at gate 2, never discovered at order time. **UI parts (displays, buttons, connectors) must be JLC-placeable or have a costed hand-assembly plan, and their supply window must sit inside the rail's actual range — decided at gate 2.** |
+| Temperature | `part_rating`, `operating_range`, `calc_ambient`. Battery charging within the cell datasheet window. **Every thermal figure names its copper condition** (layer count, copper weight, area) and is recomputed for *this* board — a datasheet R_θJA for 1 in² of 2 oz or a JEDEC 4L board is not a number for a 107 mm² 1 oz 2L board. |
 | Silkscreen | Board name, revision, date; connector names and pin 1; polarity; LEDs/buttons/jumpers by function; **test points labelled by function** (`VBAT`, `3V3`, `SWDIO`), not by refdes. No reference designators (assembly drawing has them). Text ≥ 1.0 mm. |
 | Documentation | Written as you go. `docs/key-values.md` is the single source of truth for every number that appears in more than one place; others reference it. Undocumented = not done. |
 | Git | `main` + tags from day one (`rev0.1`… at production gates, `v1.0` at release); commit at every gate. |
@@ -92,7 +93,13 @@ times rework at the schematic.
    ranges, settling, monitor accuracy, soldering notes (constraint
    types in `references/checklists.md`). Module datasheets often label
    operating ranges as "absolute maximum" — cross-check with the
-   controller IC. Fill `docs/calculations.md` (incl. the power-budget
+   controller IC. Read the datasheet of the **fitted vendor's** part, not
+   a pin-compatible one (an ST part was designed to a TI sentence once).
+   Every error term carries a **direction**, not only a magnitude;
+   every fuse is checked on its time-current curve against each fault
+   current it is claimed to cover; every indicator is calculated for
+   the failure case it exists for, not only the nominal one. Fill
+   `docs/calculations.md` (incl. the power-budget
    table), start `docs/key-values.md` and the **firmware notes**
    section of `docs/design-notes.md` (what firmware must do for the
    hardware to be safe and correct; updated at every gate). A device
@@ -103,15 +110,30 @@ times rework at the schematic.
    (grid, escaping, deterministic UUIDs). ERC via `kicad-cli`, zero
    errors. Pre-layout checklist (guideline, documented). **Self-audit**
    = reference circuit **and** deep-read constraints, pin by pin
-   against the exported netlist. Safety analysis if the parameter says
-   so. ⏸ *Schematic PDF + checklist + deviation list (+ FMEA).*
+   against the exported netlist, **with a per-resistor power check**
+   (V²/R vs. package rating at `calc_ambient`); placeholders marked
+   "finalised in schematic" are recomputed now; a duplicated part
+   re-runs the paralleling checks. Safety analysis if the parameter says
+   so; the single-fault table always. **The schematic gate is held
+   separately even during a rework** — never schematic and layout in
+   one presentation. ⏸ *Schematic PDF + checklist + deviation list +
+   single-fault table (+ FMEA).*
 5. **Library & 3D models** — project library only (`lib/`), footprints
    validated against the land pattern; **real 3D models** for every
    part with a height or a mating counterpart, checked for pin-on-pad,
    F.Fab outline and seating plane against the datasheet height.
    Placeholder boxes only when listed explicitly with their
-   dimensions and resolved before the production tag. ⏸ *Only for
-   hand-made footprints, placeholders, or model/datasheet disagreements.*
+   dimensions and resolved before the production tag. **Hand-fitted
+   and mating parts (connectors, switches, plugs) are measured in
+   hand**: hole = largest measured lead + 0.2–0.25 mm, checked at the
+   fab's plating tolerance (JLC −0.08 mm), diagonal for square pins;
+   thermal reliefs on every hand-soldered pad. A model that disagrees
+   with the datasheet is never closed as "cosmetic" — it is the first
+   hint that nobody has measured the part. Each LCSC part's CPL
+   rotation is measured from JLC's footprint (pad number **and**
+   geometry) when the part is chosen, not taken from the generic table.
+   ⏸ *Only for hand-made footprints, placeholders, measured parts, or
+   model/datasheet disagreements.*
 6. **Layout** — outline and holes from the mechanical inputs,
    placement by block, then a **placement review before any routing**:
    plot F.Fab + ratsnest; every two-pin part sits in line with its
@@ -128,14 +150,24 @@ times rework at the schematic.
    their lists reviewed. ⏸ *Renders (top/bottom/iso) + DRC + resistance
    budget + measured decoupling distances + skew table + lint lists
    with justifications.*
-7. **Production** — `scripts/export_production.sh` (refuses on any
-   ERC/DRC violation; runs the stale-value lint; exports STEP for the
-   case owner); `production/README.md`; revision + date in title
-   blocks and silk; `CHANGELOG.md`; tag. CPL rotations checked in
-   JLC's preview; stock and category re-checked **on order day**. ⏸
+7. **Production** — **before the first order tag, an independent audit
+   of the release candidate** (three audits after three tags merged
+   into one would have saved two releases). Then
+   `scripts/export_production.sh` (refuses on ERC/DRC violations and on
+   an existing tag; regenerates and diffs if the project has
+   generators; stale-value lint; claims list; layer list from the
+   board; hand-fit BOM split; STEP for the case owner); **claims pass**:
+   every sentence that states a protection, distance or direction is
+   traced to a C-nn or a measurement; `production/README.md` with the
+   isometric render at the top; revision + date in title blocks and
+   silk; `CHANGELOG.md`; tag. CPL rotations checked in JLC's preview;
+   stock, category and assembly type re-checked **on order day**. ⏸
 8. **Audits & retrospective** — answer every external audit with an
    ID-by-ID table (finding · status closed/decided/gated/firmware ·
-   fix location). After release write `docs/retrospective.md`, propose
+   fix location). **Check every audit premise against the board before
+   acting** — six suggestions on one project were wrong on their
+   numbers (fab minimums, a different part's drawing, necks that did
+   not exist); declining with numbers is a valid status. After release write `docs/retrospective.md`, propose
    skill changes, append general lessons to
    `references/lessons-learned.md`.
 
@@ -169,8 +201,9 @@ times rework at the schematic.
   search manually on jlcpcb.com/parts and record the result — do not
   stop.
 - Record per part as **symbol fields**: `LCSC`, `MPN`, `Manufacturer`,
-  `JLC_Category` (live, with date), `Stock_at_selection`, `Datasheet`.
-  The BOM export reads these fields.
+  `JLC_Category` (live, with date), `JLC_Assembly` (Economic / Standard
+  only, live), `Stock_at_selection`, `Datasheet`. The BOM export reads
+  these fields; the production README counts standard-only parts (target 0).
 - Extended parts: list with reason in design notes; count
   Basic/Preferred/Extended in the production README.
 - Project library only: symbols copied from KiCad's stock libs with
@@ -256,13 +289,21 @@ against the alternate-function table.
   once — make it fail on purpose, then trust it. Record that it has one.
 - Stale-value lint (`scripts/lint_stale_values.py`) before every tag:
   greps docs and KiCad text for previous values listed in
-  `docs/key-values.md`.
+  `docs/key-values.md`. It finds **old** numbers, not **wrong** ones —
+  the **claims pass** (`--claims`) lists every sentence that asserts a
+  protection, distance or direction; each is traced to a C-nn or a
+  measurement or rewritten before the tag.
+- **Measurements beat drawings**: plug resistance, motor current,
+  connector tails, pin diagonals — when the owner can measure it, the
+  measurement is the input, and the drawing is the thing to check.
 - Layout lints (`check_entry_angles.py`, `check_track_geometry.py`;
   pure text, no pcbnew) before the layout gate; lists reviewed with
-  justifications, not driven to zero at any cost. A lint encodes the
+  justifications item by item, not driven to zero at any cost and not
+  waved through with one class justification. A lint encodes the
   **purpose** of a rule, not one formula for it; every miss a person
-  catches becomes a positive self-test case. Measured checks beat
-  ticked checklists.
+  catches becomes a positive self-test case; every tool that fixes or
+  routes has a planted-failure test, not only an exact re-check.
+  Measured checks beat ticked checklists.
 
 ## Production outputs
 
@@ -282,9 +323,18 @@ JLC's order preview and record confirmed ones in the table.
 
 ## Conditional: safety-relevant boards
 
+**Always, for every power path**, a one-page single-fault table at
+gate 1 (in `docs/requirements.md` or `design-notes.md`): switch shorts
+· switch opens · load drives back (motors and generators push current
+into FET body diodes when the engine runs them) · fuse sees fault
+current X (time-current curve, not the rating) · input reversed ·
+what drives this node when the load runs on its own. Declining the
+full FMEA does not decline this table — a declined FMEA cost one
+project a back-driven motor and a fuse that covered nothing.
+
 If the board switches real current, drives actuators or igniters,
 charges batteries, or can hurt someone or destroy an attached device
-when it fails: say so at gate 1 and ask. If yes: single-fault analysis
+when it fails: say so at gate 1 and ask about the full analysis. If yes: single-fault analysis
 with a **structural argument** ("every current returns through
 R_REF"), FMEA table, stored-energy check (∫i²dt vs. minimum fire
 pulse), the state "arbitrary firmware + one hardware fault",
@@ -305,7 +355,7 @@ numbers, recommend one, wait.
 ## Reference files
 
 - `references/jlcpcb-rules.md` — fab and economic-PCBA constraints (verified 2026-10-16), export settings, surcharges.
-- `references/checklists.md` — gate-1 catalog, deep-read constraint types, pre-layout, layout, handover, audit response.
+- `references/checklists.md` — gate-1 catalog, single-fault table, deep-read constraint types, pre-layout, hand-fitted parts, 2-layer boards, layout, handover, audit response.
 - `references/calculations.md` — template, standard set, power budget, low-Iq battery, resistance budget, igniter energy.
 - `references/doc-templates.md` — key-values, parts summary, interfaces, production README, changelog, FMEA, firmware notes, audit table.
 - `references/kicad-generation.md` — scripted schematic/board generation pitfalls, Freerouting scope, verify-the-verifier.

@@ -27,6 +27,31 @@ Numbering `C-nn`, referenced from schematic notes and design notes.
 A failing calculation is kept in the file with its decision — it
 documents why the design is what it is.
 
+## Rules learned the hard way
+
+- **Every thermal figure names its copper condition.** R_θJA is a
+  property of the test board, not the part: write "R_θJA = 42 K/W
+  (JEDEC 2s2p, 4L, 2 oz, 1 in²)" and then either reproduce that copper
+  or recompute with a 1 oz / 2L / actual-area value (vendor app notes,
+  or a thermal estimate from copper area). Tj at stall decides, not Tj
+  at nominal.
+- **Every error term has a sign.** DC-bias of a timing cap shortens or
+  lengthens — derive which; bias current pulls up or down; hysteresis
+  is the datasheet's value for the fitted vendor.
+- **Fuses are checked on the time-current curve** against each fault
+  current they are claimed to cover, and against the legitimate peak
+  (stall, inrush) for nuisance trips. A 40 A fuse does not "cover" a
+  10–20 A shorted FET.
+- **Indicators are calculated for the fault they exist for** (open
+  load, blown fuse): V_F of the actual LED colour, amplifier gain,
+  threshold — "lit" and "dark" are numbers.
+- **Per-resistor power** in the worst *held* state (button pressed,
+  fault present), vs. the package rating derated at `calc_ambient`.
+- **Power-path resistance from the real fills**, including thermal
+  reliefs and the last millimetres into the pins; a centreline estimate
+  of 2.1 mΩ was 3.4 mΩ when solved on the fill, and the pin thread was
+  the worst part of it.
+
 ## Standard assumptions (skill defaults)
 
 - Ambient for thermal calcs: **+60 °C** (board inside an enclosure in
