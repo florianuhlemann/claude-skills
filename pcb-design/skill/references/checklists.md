@@ -115,7 +115,7 @@ Documentation
 - [ ] Track geometry on the 45° grid, no acute corners / 45° T-branches outside pads, no zero-length or duplicate segments.
 - [ ] Silk revision string equals the planned release tag.
 - [ ] **Power paths:** own net class per segment; pours/wide traces everywhere, necks only at fine-pitch pads; resistance budget per path (`calculations.md`) met.
-- [ ] Continuous GND under every signal; inner GND unbroken; RF fenced, 50 Ω.
+- [ ] Continuous GND under every signal; inner GND unbroken (any track on In1/In2 is a DRC warning, `items_not_allowed`, and needs its own allowlist line with the reason); RF fenced, 50 Ω.
 - [ ] Matched groups only above the frequency threshold; skew recorded.
 - [ ] GND stitching grid per conventions.
 - [ ] Vias within conventions; thermal vias under hot parts.

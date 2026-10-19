@@ -1,5 +1,17 @@
 # pcb-design skill — changelog
 
+## 0.7.2 — 2026-10-19
+Corrective, from an external audit of the deployed skill: two checks that never fired, and doc fixes.
+- `assets/jlcpcb-4layer.kicad_dru`: rule "inner layer tracks (justify)" is now `(severity warning)` + `(constraint disallow track)` on In1.Cu/In2.Cu. Why: it was `track_width (min 0.2mm)`, so any inner track of 0.2 mm or wider passed silently although the comment promised every one would be flagged; each inner track now raises `items_not_allowed` and passes `drc_gate.py` only with its own justified allowlist line. The redundant `A.Type == 'Track'` term is dropped so arcs are caught as well.
+- `scripts/export_production.sh`: the revision check requires a `rev`/`v` prefix (case-insensitive, optional space or quote, so the title block `(rev "0.3")` counts) and no further digit after the revision. Why: the old pattern ended in the bare revision, so with rev 0.3 every 0.3 mm via drill satisfied it and the warning never fired. Loop over files instead of `grep -L`, so the result no longer depends on grep's `-L` exit status. Header now says the helper scripts come from the skill's own folder, not the project's `scripts/`.
+- `scripts/pdf_grep.sh`: checks for `pdfinfo` as well as `pdftotext`.
+- `references/jlcpcb-rules.md`: via pad stated once, as in the DRU: minimum hole + 0.15 mm (0.3/0.45 mm); JLC's hole + 0.1 mm named as JLC's capability, not this skill's rule.
+- `references/checklists.md`: layout item says an inner-layer track is a DRC warning that needs an allowlist line.
+- `SKILL.md`: scope names Claude Code with a local KiCad 10 as the target and the Claude app as rules and documents only; `scripts/` means `<skill dir>/scripts/`. Description shortened by 63 characters, trigger words unchanged. 228 → 230 lines.
+- `README.md`: install section says the same about Claude Code vs. the Claude app.
+- `scripts/README.md`: scripts live in the skill's folder; poppler needs for `pdf_grep.sh`; revision check described.
+- `scripts/drc_gate.py`: copy refreshed from pcb-audit 0.2.1 (v1.1 → v1.2); identical apart from the header line.
+
 ## 0.7.1 — 2026-10-19
 Corrective: drill origin in the export chain, and the designer side of pcb-audit 0.2.0's findings format.
 - `export_production.sh`: drills exported with `--drill-origin plot` (the drill/place origin) instead of `absolute`, so gerbers (`--use-drill-file-origin`), drills and the position file share one origin. Why: on a board with an aux origin every hole landed offset from its pad by that origin; DRC passed and only a fab-file check caught it. Warns when the board sets no drill/place origin; the closing hint names pcb-audit's `check_fab_files.py`.

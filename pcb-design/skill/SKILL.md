@@ -1,8 +1,8 @@
 ---
 name: pcb-design
-description: House rules for designing printed circuit boards in KiCad 10 for JLCPCB fabrication and economic assembly — gated workflow (requirements → architecture → datasheet deep read → schematic → library → layout → production → retrospective), project parameters, 4-layer stackup, via/stitching rules, LCSC sourcing with live category and stock checks, project-local library, single-source key values, calculations and FMEA, kicad-cli ERC/DRC/export chain, 3D renders. Use this skill whenever the user mentions a PCB, circuit board, schematic, KiCad, JLCPCB, LCSC, footprint, gerber, BOM, stackup, layout, routing, or asks to "design a circuit/board for…", even if only a component, module, or MCU is named and the word "PCB" never appears. Also use it when preparing an existing KiCad project for production, and when writing a project retrospective for a board. Enclosure/case CAD design is out of scope — the skill only collects the mechanical constraints a board must respect.
+description: House rules for designing printed circuit boards in KiCad 10 for JLCPCB fabrication and economic assembly — gated workflow (requirements → architecture → datasheet read → schematic → library → layout → production → retrospective), project parameters, 4-layer stackup, via/stitching rules, live LCSC sourcing (category, stock), project-local library, single-source key values, calculations and FMEA, kicad-cli ERC/DRC/export chain, 3D renders. Use this skill whenever the user mentions a PCB, circuit board, schematic, KiCad, JLCPCB, LCSC, footprint, gerber, BOM, stackup, layout, routing, or asks to "design a circuit/board for…", even if only a component, module, or MCU is named and the word "PCB" never appears. Also use it to prepare an existing KiCad project for production or to write a board retrospective. Enclosure/case CAD is out of scope; the skill only collects the board's mechanical constraints.
 metadata:
-  version: "0.7.1"
+  version: "0.7.2"
 ---
 
 # PCB design (KiCad 10 → JLCPCB)
@@ -16,10 +16,12 @@ the way, say why and ask — see "When to stop and ask".
 **Scope.** Laying out, designing and delivering the board: rules,
 checklists, documentation, production chain; checking is the gate
 audit's (see Workflow). Not in scope: enclosure/case design (the board
-delivers a STEP and its mechanical constraints), firmware, and
-project-specific generators or routing tools. Before the first gate
-run `bash scripts/preflight.sh` once: it tells you whether kicad-cli
-and the JLC parts API are reachable and what to do by hand if not.
+delivers a STEP and its mechanical constraints), firmware,
+project-specific generators or routing tools. Built for Claude Code with
+a local KiCad 10; the Claude app (no kicad-cli, pcbnew or JLC API) gets
+rules and documents only. `scripts/` means `<skill dir>/scripts/`.
+Before the first gate run `bash scripts/preflight.sh` once: it reports
+whether kicad-cli and the JLC API answer, and what to do by hand if not.
 
 ## Project parameters (gate 1, `docs/requirements.md`)
 

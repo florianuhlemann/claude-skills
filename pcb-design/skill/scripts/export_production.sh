@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.7.1
+# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.7.2
 #
 # Usage: export_production.sh <project-dir> <rev>
-#   project-dir contains hardware/<name>.kicad_pro|.kicad_sch|.kicad_pcb,
-#   rotation-corrections.csv and the skill's fix_cpl_rotation.py in scripts/.
+#   project-dir contains hardware/<name>.kicad_pro|.kicad_sch|.kicad_pcb and
+#   rotation-corrections.csv. The helper scripts (kicad_env.sh, drc_gate.py,
+#   lint_stale_values.py, fix_cpl_rotation.py) are taken from this script's
+#   own folder, the skill's scripts/; the project needs no copies.
 #
 # Runs ERC + DRC first and aborts on errors, then exports gerbers, drills,
 # BOM (LCSC fields), position file -> JLC CPL, assembly PDF, STEP and
@@ -45,8 +47,13 @@ if [ -x "$PROJ/scripts/regenerate.sh" ]; then
 fi
 
 echo "== Revision consistency"
-grep -L "rev *$REV\|Rev *$REV\|$REV" "$HW"/*.kicad_sch "$PCB" 2>/dev/null | while read -r f; do
-  echo "WARNING: '$REV' not found in $f (title block / silk?)"; done
+# The revision only counts with a rev/v prefix: title block (rev "0.3"), silk "Rev 0.3" or "v0.3".
+# A bare 0.3 is every 0.3 mm via drill and proves nothing.
+REV_RE="(^|[^[:alpha:]])(rev|v) ?\"?${REV//./\\.}([^.0-9]|\$)"
+for f in "$HW"/*.kicad_sch "$PCB"; do
+  [ -f "$f" ] || continue
+  grep -qiE -- "$REV_RE" "$f" || echo "WARNING: revision '$REV' not found in $f (title block rev, silk 'rev $REV' / 'v$REV')"
+done
 
 echo "== ERC"
 kicad-cli sch erc --severity-all --exit-code-violations \
