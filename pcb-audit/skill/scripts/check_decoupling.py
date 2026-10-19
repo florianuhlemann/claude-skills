@@ -32,6 +32,10 @@ Board checks (gate 6):
   D7 minor    no via on the cap's return-pad net within --gnd-via-dist mm
               (edge to edge) of the return pad
 
+The table also gives the routed copper length pin -> cap (tracks and arcs, layer-change vias
+counted, zones ignored; pcb_board.route) next to the straight edge/centre distances: a
+distance claim is checked against the routed number, never the straight line.
+
 Exit 1 on any blocker or major, 0 otherwise, 2 on usage. The Decouples field is
 read from the netlist comp in both forms KiCad writes:
 (property (name "Decouples") (value "U1:12")) and (fields (field (name "Decouples") "U1:12")).
@@ -40,16 +44,17 @@ import json
 import math
 import os
 import re
+import shutil
 import sys
 import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from sexpr import Sym, find, first, parse  # noqa: E402
+from pcb_board import load as load_pcb, pad_dist, poly_point_dist, route, track_path  # noqa: E402
+from sexpr import find, first, parse  # noqa: E402
 
 SEV_ORDER = {"blocker": 0, "major": 1, "minor": 2, "note": 3}
 DEF_CAP = r"^C\d+$"
 DEF_GND = r"(^|/)(A|D|P|S)?(GND|VSS)\w*$|(^|/)0V$"
-TOL = 0.01
 
 # ---------------------------------------------------------------- netlist
 
@@ -88,222 +93,17 @@ def load_netlist(path):
 def short(net):
     return net.split("/")[-1] if net else "-"
 
-# ---------------------------------------------------------------- board
-
-
-def rot(px, py, deg):
-    t = math.radians(deg)
-    return px * math.cos(t) + py * math.sin(t), -px * math.sin(t) + py * math.cos(t)
-
-
-def nums(e, n):
-    return [float(x) for x in e[1:1 + n]]
-
-
-def net_of(node, table):
-    """KiCad <= 9: (net 3 "GND"); KiCad 10: (net "GND")."""
-    if not node or len(node) < 2:
-        return ""
-    if len(node) >= 3:
-        return str(node[2])
-    v = node[1]
-    if isinstance(v, Sym) and str(v).isdigit():
-        return table.get(str(v), str(v))
-    return str(v)
-
-
-class Pad:
-    def __init__(self, ref, num, cx, cy, w, h, deg, shape, net, layers):
-        self.ref, self.num, self.cx, self.cy = ref, num, cx, cy
-        self.w, self.h, self.deg, self.shape, self.net = w, h, deg, shape, net
-        self.layers = layers
-        self.poly = self._poly()
-
-    def _poly(self):
-        hw, hh = self.w / 2, self.h / 2
-        if self.shape == "circle":
-            pts = [(hw * math.cos(2 * math.pi * k / 24), hw * math.sin(2 * math.pi * k / 24)) for k in range(24)]
-        elif self.shape == "oval" and abs(hw - hh) > 1e-9:
-            r = min(hw, hh)
-            pts = []
-            if hw > hh:
-                for cx, a0 in ((hw - r, -90), (-(hw - r), 90)):
-                    pts += [(cx + r * math.cos(math.radians(a0 + 15 * k)), r * math.sin(math.radians(a0 + 15 * k))) for k in range(13)]
-            else:
-                for cy, a0 in ((hh - r, 0), (-(hh - r), 180)):
-                    pts += [(r * math.cos(math.radians(a0 + 15 * k)), cy + r * math.sin(math.radians(a0 + 15 * k))) for k in range(13)]
-        elif self.shape == "oval":
-            pts = [(hw * math.cos(2 * math.pi * k / 24), hw * math.sin(2 * math.pi * k / 24)) for k in range(24)]
-        else:   # rect, roundrect, trapezoid, custom (anchor size): rectangle
-            pts = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]
-        out = []
-        for u, v in pts:
-            dx, dy = rot(u, v, self.deg)
-            out.append((self.cx + dx, self.cy + dy))
-        return out
-
-    def on(self, layer):
-        return any(l == layer or (l == "*.Cu" and layer.endswith(".Cu")) for l in self.layers)
-
-    def contains(self, x, y, tol=TOL):
-        return point_in_poly(x, y, self.poly) or poly_point_dist(self.poly, x, y) <= tol
+# ---------------------------------------------------------------- board (shared reader: pcb_board.py)
 
 
 def load_board(path):
-    t = parse(open(path, encoding="utf-8").read())
-    table = {}
-    for n in find(t, "net"):
-        if len(n) >= 3:
-            table[str(n[1])] = str(n[2])
+    """Footprint pads (numbered, on copper) by ref, track segments, vias."""
+    b = load_pcb(path)
     fps = {}
-    for fp in find(t, "footprint"):
-        ref = ""
-        for p in find(fp, "property"):
-            if len(p) > 2 and p[1] == "Reference":
-                ref = str(p[2])
-        for p in find(fp, "fp_text"):
-            if len(p) > 2 and p[1] == "reference" and not ref:
-                ref = str(p[2])
-        at = first(fp, "at")
-        if not (ref and at):
-            continue
-        fx, fy = nums(at, 2)
-        frot = float(at[3]) if len(at) > 3 else 0.0
-        pads = []
-        for p in find(fp, "pad"):
-            num = str(p[1]) if len(p) > 1 else ""
-            pat, psz = first(p, "at"), first(p, "size")
-            if num == "" or not (pat and psz):
-                continue
-            px, py = nums(pat, 2)
-            pdeg = float(pat[3]) if len(pat) > 3 else 0.0   # file stores the absolute pad angle
-            dx, dy = rot(px, py, frot)
-            w, h = nums(psz, 2)
-            shape = str(p[3]) if len(p) > 3 else "rect"
-            lay = first(p, "layers")
-            layers = [str(x) for x in lay[1:]] if lay else []
-            if not any(l.endswith(".Cu") for l in layers):
-                continue
-            pads.append(Pad(ref, num, fx + dx, fy + dy, w, h, pdeg, shape, net_of(first(p, "net"), table), layers))
-        fps[ref] = pads
-    segs = []
-    for kind in ("segment", "arc"):
-        for s in find(t, kind):
-            st, en, lay = first(s, "start"), first(s, "end"), first(s, "layer")
-            if not (st and en):
-                continue
-            net, layer = net_of(first(s, "net"), table), str(lay[1]) if lay else ""
-            a, b = tuple(nums(st, 2)), tuple(nums(en, 2))
-            mid = first(s, "mid") if kind == "arc" else None
-            if mid:
-                m = tuple(nums(mid, 2))
-                segs += [(a, m, layer, net), (m, b, layer, net)]
-            else:
-                segs.append((a, b, layer, net))
-    vias = []
-    for v in find(t, "via"):
-        at, sz, lay = first(v, "at"), first(v, "size"), first(v, "layers")
-        if not at:
-            continue
-        layers = [str(x) for x in lay[1:]] if lay else ["F.Cu", "B.Cu"]
-        vias.append((tuple(nums(at, 2)), float(sz[1]) / 2 if sz else 0.3, net_of(first(v, "net"), table), layers))
-    return fps, segs, vias
-
-# ---------------------------------------------------------------- geometry
-
-
-def point_seg_dist(px, py, a, b):
-    ax, ay = a
-    bx, by = b
-    dx, dy = bx - ax, by - ay
-    L2 = dx * dx + dy * dy
-    t = 0.0 if L2 == 0 else max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L2))
-    return math.hypot(px - ax - t * dx, py - ay - t * dy)
-
-
-def point_in_poly(x, y, poly):
-    inside = False
-    n = len(poly)
-    for i in range(n):
-        (x1, y1), (x2, y2) = poly[i], poly[(i + 1) % n]
-        if (y1 > y) != (y2 > y) and x < (x2 - x1) * (y - y1) / (y2 - y1) + x1:
-            inside = not inside
-    return inside
-
-
-def poly_point_dist(poly, x, y):
-    if point_in_poly(x, y, poly):
-        return 0.0
-    n = len(poly)
-    return min(point_seg_dist(x, y, poly[i], poly[(i + 1) % n]) for i in range(n))
-
-
-def segs_cross(a, b, c, d):
-    def o(p, q, r):
-        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
-    return (o(a, b, c) > 0) != (o(a, b, d) > 0) and (o(c, d, a) > 0) != (o(c, d, b) > 0)
-
-
-def pad_dist(p, q):
-    """Edge-to-edge distance between two pads (0 when they overlap)."""
-    n, m = len(p.poly), len(q.poly)
-    for i in range(n):
-        for j in range(m):
-            if segs_cross(p.poly[i], p.poly[(i + 1) % n], q.poly[j], q.poly[(j + 1) % m]):
-                return 0.0
-    if point_in_poly(*p.poly[0], q.poly) or point_in_poly(*q.poly[0], p.poly):
-        return 0.0
-    return min(min(poly_point_dist(q.poly, *v) for v in p.poly), min(poly_point_dist(p.poly, *v) for v in q.poly))
-
-
-def via_on(via, layer):
-    _, _, _, layers = via
-    if layer in layers:
-        return True
-    return "F.Cu" in layers and "B.Cu" in layers   # through via spans every copper layer
-
-
-def track_path(start, goal, pads, segs, vias):
-    """Follow tracks from pad `start` on its net; 'track' if `goal` is reached without passing a via,
-    'via' if a via blocked every track route that would have continued, 'none' if no track route exists."""
-    net = start.net
-    S = [s for s in segs if s[3] == net]
-    other_pads = [p for p in pads if p.net == net and p is not start and p is not goal]
-    blocking = [v for v in vias if v[2] == net and not goal.contains(v[0][0], v[0][1], v[1])
-                and not start.contains(v[0][0], v[0][1])]   # via in the pin pad: noted by the auditor, not a block
-
-    def touches(seg, pt):
-        return point_seg_dist(pt[0], pt[1], seg[0], seg[1]) <= TOL
-
-    def via_hit(seg):
-        return [v for v in blocking if via_on(v, seg[2]) and point_seg_dist(v[0][0], v[0][1], seg[0], seg[1]) <= v[1] + TOL]
-
-    seen, queue, via_seen = set(), [], False
-    for i, s in enumerate(S):
-        if start.on(s[2]) and (start.contains(*s[0]) or start.contains(*s[1])):
-            seen.add(i); queue.append(i)
-    if not queue:
-        return "none"
-    while queue:
-        i = queue.pop()
-        s = S[i]
-        if via_hit(s):
-            via_seen = True
-            continue
-        for e in (s[0], s[1]):
-            if goal.on(s[2]) and goal.contains(*e):
-                return "track"
-        hubs = [p for p in other_pads if p.on(s[2]) and (p.contains(*s[0]) or p.contains(*s[1]))]
-        for j, o in enumerate(S):
-            if j in seen:
-                continue
-            same_layer = o[2] == s[2]
-            joined = same_layer and (touches(o, s[0]) or touches(o, s[1]) or touches(s, o[0]) or touches(s, o[1]))
-            if not joined:
-                joined = any(p.on(o[2]) and (p.contains(*o[0]) or p.contains(*o[1])) for p in hubs)
-            if joined:
-                seen.add(j); queue.append(j)
-    return "via" if via_seen else "none"
+    for f in b.footprints:
+        if f.ref:
+            fps[f.ref] = [p for p in f.pads if p.num != "" and any(l.endswith(".Cu") for l in p.layers)]
+    return fps, b.segs, b.vias
 
 # ---------------------------------------------------------------- analysis
 
@@ -385,7 +185,7 @@ def analyse(net_path, pcb_path=None, max_dist=2.0, gnd_via_dist=1.0, cap_refs=DE
         for tref, tpin in ts:
             tnet = comps[tref]["pins"][tpin]["net"]
             row = {"cap": r, "decouples": f"{tref}:{tpin}", "net": short(tnet), "edge_mm": None, "centre_mm": None,
-                   "path": "-", "nearest": "-", "gnd_via_mm": None}
+                   "route_mm": None, "route_vias": None, "path": "-", "nearest": "-", "gnd_via_mm": None}
             mine = [f for f in findings if f["cap"] == r and f["target"] == f"{tref}:{tpin}"]
             if board and not mine:
                 fps, segs, vias, all_pads = board
@@ -410,6 +210,8 @@ def analyse(net_path, pcb_path=None, max_dist=2.0, gnd_via_dist=1.0, cap_refs=DE
                                 f"{tref}.{tpin}, limit {max_dist:g} mm")
                         path = track_path(tp, c, all_pads, segs, vias)
                         row["path"] = path
+                        rt = route([tp], [c], all_pads, segs, vias)
+                        row["route_mm"], row["route_vias"] = (rt.length, rt.vias) if rt else (None, None)
                         if path != "track":
                             how = ("every track route from the pin passes a via first" if path == "via"
                                    else "no track connects pin and cap (zone only or unrouted)")
@@ -451,10 +253,12 @@ def report(rows, findings, summary, max_dist):
     if summary["no_field_anywhere"]:
         print("note: no capacitor carries a Decouples field — the assignment cannot be checked; "
               "every cap on a supply net is listed as unassigned (reduced coverage)")
-    print(f"{'Cap':<6}{'Decouples':<12}{'Net':<12}{'Edge/ctr mm':<14}{'Path':<7}{'Nearest':<9}{'GND via':<9}Verdict")
+    print(f"{'Cap':<6}{'Decouples':<12}{'Net':<12}{'Edge/ctr mm':<14}{'Routed mm':<12}{'Path':<7}{'Nearest':<9}"
+          f"{'GND via':<9}Verdict")
     for r in rows:
         dist = "-" if r.get("edge_mm") is None else f"{fmt(r['edge_mm'])}/{fmt(r['centre_mm'])}"
-        print(f"{r['cap']:<6}{r['decouples']:<12}{r['net'][:11]:<12}{dist:<14}{r.get('path', '-'):<7}"
+        rt = "-" if r.get("route_mm") is None else f"{fmt(r['route_mm'])}/{r['route_vias']}v"
+        print(f"{r['cap']:<6}{r['decouples']:<12}{r['net'][:11]:<12}{dist:<14}{rt:<12}{r.get('path', '-'):<7}"
               f"{r.get('nearest', '-'):<9}{fmt(r.get('gnd_via_mm')):<9}{r['verdict']}")
     if not summary["board"]:
         print("(no board given: D4-D7 layout checks not run)")
@@ -577,13 +381,15 @@ def write_fixtures(d):
 
 
 def self_test():
-    paths = write_fixtures(tempfile.mkdtemp())
+    tmp = tempfile.mkdtemp()
+    paths = write_fixtures(tmp)
     rows, f, s = analyse(*paths["clean"])
     assert not f, f
     assert s["assigned"] == 4 and s["bulk"] == 1, s
     byc = {r["cap"]: r for r in rows}
     assert byc["C1"]["path"] == "track" and byc["C2"]["path"] == "track", rows   # C2: rotated, numbered net, T-join
     assert byc["C1"]["edge_mm"] == 1.2 and byc["C2"]["edge_mm"] == 1.2, rows
+    assert byc["C1"]["route_mm"] == 2.0 and byc["C1"]["route_vias"] == 0, rows        # routed copper, not air
     rows, f, s = analyse(*paths["planted"])
     got = {(x["check"], x["cap"], x["target"]) for x in f}
     sev = {(x["check"], x["cap"], x["target"]): x["severity"] for x in f}
@@ -596,6 +402,7 @@ def self_test():
     # netlist only (gate 4): D1/D2 still caught, no layout checks
     _, f2, s2 = analyse(paths["planted"][0])
     assert not s2["board"] and {"D1", "D2"} <= {x["check"] for x in f2} and not {"D4", "D5", "D6", "D7"} & {x["check"] for x in f2}
+    shutil.rmtree(tmp, ignore_errors=True)
     print("self-test OK: clean variant passes (property and fields forms, rotated cap, numbered nets, T-join); "
           "planted variant flags unassigned C6, C7 on another net, uncovered U1.5, swapped C1/C2 (distance, plane path, "
           "nearest cap), via-first C4, zone-fed C5 without GND via")
