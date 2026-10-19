@@ -50,8 +50,9 @@ skills at once.
   dated entry at the top of `CHANGELOG.md` for every change that ships.
 - **Bundle** rebuilt with `tools/build_skill.sh <skill>` whenever anything
   under `skill/` changes; never edit the `.skill` zip by hand.
-- **Scripts** are Python 3 standard library or bash, carry a `--self-test`
-  where they check something, and `python3 -m py_compile` / `bash -n` must
+- **Scripts** are Python 3 standard library or bash (the one exception is
+  `sync_models.py`, which needs KiCad's bundled Python for `pcbnew` and says
+  so in its header), carry a `--self-test` where they check something, and `python3 -m py_compile` / `bash -n` must
   be clean. Everything a skill's workflow needs ships inside the skill;
   a script that is not needed is deleted, not parked elsewhere.
 - Commit messages describe the skill and version ("pcb-design 0.6.0: …").

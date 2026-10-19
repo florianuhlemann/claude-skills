@@ -12,7 +12,8 @@ You maintain the **pcb-design** skill in this repository: `pcb-design/skill/`
 The skill is house rules for designing PCBs in KiCad 10 for JLCPCB
 fabrication and economic assembly: an 8-gate workflow, project parameters,
 fixed conventions, project-local library, `kicad-cli` ERC/DRC/export chain
-and fifteen shipped scripts (`scripts/README.md` lists them by gate). The
+and the shipped scripts (`scripts/README.md` lists them by gate; twelve
+since 0.7.0, the check scripts live in pcb-audit). The
 user is an experienced engineer; the skill talks to them as a peer.
 
 ## How you work
