@@ -21,13 +21,13 @@ the script's header.
 | `drc_gate.py drc.json allowlist` | gates 6–7 | Errors, unconnected items and parity always fail; a warning passes only with an exact allowlist line carrying a justification; stale lines fail. Needed because kicad-cli 10 ignores the project's DRC exclusions. Copy; the source lives in pcb-audit. |
 | `lint_stale_values.py <project>` | before every tag | "Previous values" from `docs/key-values.md` must not survive anywhere (CHANGELOG, retrospective, `docs/history/` exempt). Copy; the source lives in pcb-audit. |
 | `fix_cpl_rotation.py` | gate 7 | KiCad position CSV → JLC CPL: rotation table, THT placement at the pad centroid (`--pcb`), BOM filter with designator ranges expanded (`--bom`). Called by the export chain. |
-| `export_production.sh <project> <rev>` | gate 7 | Tag check, optional `scripts/regenerate.sh` hook, stale-value lint, revision check, ERC, DRC gated by the allowlist, gerbers (copper layers read from the board), drills, BOM split JLC / hand-fit, CPL, PDFs, STEP, renders. |
+| `export_production.sh <project> <rev>` | gate 7 | Tag check, optional `scripts/regenerate.sh` hook, stale-value lint, revision check, ERC, DRC gated by the allowlist, gerbers (copper layers read from the board) and drills on one origin (drill/place origin; warns when the board sets none), BOM split JLC / hand-fit, CPL, PDFs, STEP, renders. |
 
 ## Not shipped
 
 The check scripts (netlist audit, pad-exit and track-geometry lints,
-claims pass, decoupling check) live in the pcb-audit skill and run at
-its gate audits. Schematic/board generators and the `regenerate.sh`
+claims pass, decoupling check, fab-file alignment check) live in the
+pcb-audit skill and run at its gate audits. Schematic/board generators and the `regenerate.sh`
 hook, routing finishers, pour and resistance-budget tools depend on one
 board's geometry and stay in that project. The export chain calls
 `scripts/regenerate.sh` only if the project has one.

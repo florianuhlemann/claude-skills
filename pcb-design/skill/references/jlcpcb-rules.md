@@ -92,7 +92,11 @@ use `--smd-only`).
   silk, Protel extensions.
 - Layers: F.Cu, In1.Cu, In2.Cu, B.Cu, F.Paste, B.Paste, F.Silkscreen,
   B.Silkscreen, F.Mask, B.Mask, Edge.Cuts.
-- Drill: Excellon, PTH/NPTH separate, decimal, absolute origin.
+- Drill: Excellon, PTH/NPTH separate, decimal.
+- One origin for gerbers, drills and the position file: the drill/place
+  (aux) origin (`--use-drill-file-origin` / `--drill-origin plot`). It
+  lies inside the board or at a corner, so the CPL has no negative
+  coordinates. Mixed origins put every hole off its pad and pass DRC.
 - One `gerbers.zip` per revision.
 
 ## Surcharges to avoid

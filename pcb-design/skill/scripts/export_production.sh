@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.7
+# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.7.1
 #
 # Usage: export_production.sh <project-dir> <rev>
 #   project-dir contains hardware/<name>.kicad_pro|.kicad_sch|.kicad_pcb,
@@ -71,6 +71,9 @@ PY
 fi
 
 echo "== Gerbers"
+# Gerbers, drills and the position file all use the drill/place (aux) origin. It must sit inside
+# the board or at a corner (bottom-left is usual) so the CPL has no negative coordinates.
+grep -q '(aux_axis_origin' "$PCB" || echo "WARNING: no drill/place origin set in $PCB — exports use the page origin and the CPL gets negative Y; place it inside the board or at a corner"
 GERB="$OUT/gerbers"; mkdir -p "$GERB"
 # copper layer list from the board itself (2L boards have no In*.Cu)
 INNER="$(grep -oE '"In[0-9]+\.Cu"' "$PCB" | tr -d '"' | sort -t n -k 2 -n -u | paste -sd, -)"
@@ -82,9 +85,11 @@ kicad-cli pcb export gerbers \
   --output "$GERB/" "$PCB"
 
 echo "== Drills"
+# --drill-origin plot = the drill/place file origin, the same one --use-drill-file-origin gives the
+# gerbers and the position file. "absolute" here offset every hole from its pad by the aux origin.
 kicad-cli pcb export drill --format excellon --excellon-separate-th \
   --excellon-units mm --excellon-zeros-format decimal \
-  --drill-origin absolute --generate-map --map-format gerberx2 \
+  --drill-origin plot --generate-map --map-format gerberx2 \
   --output "$GERB/" "$PCB"
 (cd "$OUT" && rm -f gerbers.zip && zip -qr gerbers.zip gerbers)
 
@@ -136,4 +141,5 @@ kicad-cli pcb render --side bottom --width 2400 --height 1800 --quality high --o
 kicad-cli pcb render --side top --rotate "-30,0,-30" --zoom 0.9 --width 2400 --height 1800 --quality high --output "$RND/iso.png" "$PCB"
 
 echo "== Done: $OUT  renders: $RND"
-echo "Next: check cpl.csv rotations in the JLC order preview, fill production/README.md, CHANGELOG.md, git tag rev$REV"
+echo "Next: pcb-audit's check_fab_files.py on $GERB (holes on pads; or gerbers + drills in one viewer),"
+echo "      cpl.csv rotations in the JLC order preview, production/README.md, CHANGELOG.md, git tag rev$REV"

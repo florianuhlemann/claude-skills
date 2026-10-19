@@ -132,6 +132,7 @@ Documentation
 - [ ] ERC and DRC clean (reports in `production/rev<X>/`); stale-value lint clean.
 - [ ] If the project has generators: re-run, no diff under `hardware/`, schematic ↔ board parity.
 - [ ] Export chain outputs complete; CPL includes THT parts; rotations checked in JLC preview; table updated.
+- [ ] Holes on pads in the exported files: pcb-audit's `check_fab_files.py` on the production gerbers folder clean (or gerbers and drills opened together in one viewer).
 - [ ] BOM: every line LCSC + live category + live assembly type + stock ≥ `quantity` × qty + attrition; thin parts flagged; extended and standard-only parts listed with reasons; Basic/Preferred/Extended and standard-only counts in README.
 - [ ] Hand-assembled parts (if any) with their plan and cost in README.
 - [ ] `production/README.md` (isometric render at the top, release link, what it does), `bom_handfit.csv` with the hand-assembly plan, `CHANGELOG.md`, revision/date in **all** title blocks and silk, firmware notes current, STEP exported for the case owner, git tag on `main`.
@@ -141,11 +142,17 @@ Documentation
 
 One table per audit in `docs/design-notes.md`:
 
-| ID | Finding | Status (closed / decided / gated / firmware / declined with numbers) | Fix location (file, section, rev) |
+| ID | Finding | Status (closed / decided / gated / firmware / declined with numbers) | Fix location (file, section, rev) / numbers |
 
-IDs are the audit's (`A<gate>-<nn>`). Closed means the fix is in the
-files and the gate's audit re-ran; "gated" names the gate (e.g.
-pre-order sample test) and the criterion; "declined with numbers"
-carries the numbers that refute the premise (fab minimum
-actually 0.2 mm, the quoted drawing belongs to another part, the neck
-does not exist in the fill). An audit reads as authoritative; it isn't.
+IDs are the audit's (`A<gate>-<nn>`); outside that report, cite them
+with its file name (`gate7-2026-10-19/A7-03`), since gate numbers repeat
+across revisions. Closed means the fix is in the files and the check
+that found it re-ran; "gated" names the measurement, the probe point or
+method and the accept limit, and the gate or build where it is taken
+(e.g. pre-order sample: ripple at C12, 20 MHz BW, ≤ 30 mV pp);
+"declined with numbers" carries the numbers that refute the premise
+(fab minimum actually 0.2 mm, the quoted drawing belongs to another
+part, the neck does not exist in the fill). The audit's **when** column
+(`before ordering` / `this spin if cheap` / `next revision` / `docs`)
+sets the order of work. A sign-off holds for the revision it was
+measured on; an audit reads as authoritative, and it isn't.

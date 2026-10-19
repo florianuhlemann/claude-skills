@@ -1,5 +1,15 @@
 # pcb-design skill — changelog
 
+## 0.7.1 — 2026-10-19
+Corrective: drill origin in the export chain, and the designer side of pcb-audit 0.2.0's findings format.
+- `export_production.sh`: drills exported with `--drill-origin plot` (the drill/place origin) instead of `absolute`, so gerbers (`--use-drill-file-origin`), drills and the position file share one origin. Why: on a board with an aux origin every hole landed offset from its pad by that origin; DRC passed and only a fab-file check caught it. Warns when the board sets no drill/place origin; the closing hint names pcb-audit's `check_fab_files.py`.
+- `references/jlcpcb-rules.md`: "absolute origin" replaced by the actual rule: one drill/place origin for all three exports, lying inside the board or at a corner so the CPL has no negative coordinates.
+- `references/checklists.md`: handover item for holes on pads in the exported files (pcb-audit's `check_fab_files.py`, or gerbers and drills in one viewer). Audit response: IDs cited with the report file name outside their report, `gated` names measurement, probe point or method and accept limit, the audit's **when** column sets the order of work.
+- `references/doc-templates.md`: audit response table headed by report file name, with a `gated` example and a cross-report ID.
+- `SKILL.md`: the Workflow sentence on answering findings says what `gated` carries; line count unchanged (228).
+- `references/lessons-learned.md`: two stories (mixed export origins; a sign-off carried across three revisions after a re-route tripled the loop).
+- `scripts/README.md`: export chain line and the not-shipped list updated.
+
 ## 0.7.0 — 2026-10-19
 Split: pcb-design lays out, designs and delivers the board; all checking moves to the new sibling skill pcb-audit, which audits the milestone at every ⏸ gate.
 - `SKILL.md`: every ⏸ hands the milestone to pcb-audit (report in `docs/audits/`); the designer continues on PASS or once every finding is answered by ID (`closed` / `decided` / `gated` / `firmware` / `declined with numbers`). Self-audit, independent audit, audit premises, layout-lint and claims-pass text removed (now in pcb-audit). Frontmatter no longer triggers on reviewing, auditing or fixing, so the two skills do not both fire. 229 → 228 lines.

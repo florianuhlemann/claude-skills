@@ -2,7 +2,7 @@
 name: pcb-design
 description: House rules for designing printed circuit boards in KiCad 10 for JLCPCB fabrication and economic assembly — gated workflow (requirements → architecture → datasheet deep read → schematic → library → layout → production → retrospective), project parameters, 4-layer stackup, via/stitching rules, LCSC sourcing with live category and stock checks, project-local library, single-source key values, calculations and FMEA, kicad-cli ERC/DRC/export chain, 3D renders. Use this skill whenever the user mentions a PCB, circuit board, schematic, KiCad, JLCPCB, LCSC, footprint, gerber, BOM, stackup, layout, routing, or asks to "design a circuit/board for…", even if only a component, module, or MCU is named and the word "PCB" never appears. Also use it when preparing an existing KiCad project for production, and when writing a project retrospective for a board. Enclosure/case CAD design is out of scope — the skill only collects the mechanical constraints a board must respect.
 metadata:
-  version: "0.7.0"
+  version: "0.7.1"
 ---
 
 # PCB design (KiCad 10 → JLCPCB)
@@ -57,10 +57,10 @@ Every rule refers to these, never to a hard-coded number.
 
 Rework after layout costs ten times rework at the schematic. Details
 and the checklists for each gate are in `references/checklists.md`.
-At every ⏸ hand the milestone to the **pcb-audit** skill, the checking
-counterpart (per-gate audit, report in `docs/audits/`); continue on
-PASS or once every finding is answered by ID — `closed` / `decided` /
-`gated` / `firmware` / `declined with numbers`, with fix location.
+At every ⏸ hand the milestone to the **pcb-audit** skill (per-gate
+audit, report in `docs/audits/`); continue on PASS or once every finding
+is answered by ID — `closed` / `decided` / `gated` (measurement, probe
+point, accept limit) / `firmware` / `declined with numbers`, with fix location.
 
 1. **Requirements** — parameter block, purpose, interfaces, rails,
    must/should/could; the fixed gate-1 question catalog in one round;

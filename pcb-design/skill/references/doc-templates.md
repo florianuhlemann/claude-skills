@@ -141,12 +141,18 @@ every entry in "Previous values" and fails if one is found.
 ```
 ## Audit response table
 
-Status words: closed / decided / gated / firmware / declined with numbers.
+One table per audit report, headed with the report file name. Status
+words: closed / decided / gated / firmware / declined with numbers. An ID
+from another report is cited with its file name; `gated` carries the
+measurement, the probe point or method and the accept limit.
+
+`### gate6-2026-10-18`
 
 | ID | Finding | Status | Fix location / numbers |
 |---|---|---|---|
-| A4-03 | PGA CM margin 80 mV (Eq. 15) | closed | sch R7 1.2k; calculations C-04; fmea §3; key-values |
 | A6-02 | use 2 oz copper, min 0.16 mm | declined with numbers | JLC 2 oz minimum is 0.2 mm; HotRod pads are 0.20 mm |
+| A6-05 | buck input loop not measured on this revision (was gate4-2026-10-16/A4-07) | gated | gate 7 sample: SW-node ringing at L1 pad, 500 MHz probe, ground spring; accept ≤ 3 V overshoot |
+| A6-07 | PGA CM margin 80 mV (Eq. 15) | closed | sch R7 1.2k; calculations C-04; fmea §3; key-values |
 
 ## docs/retrospective.md (after release)
 
