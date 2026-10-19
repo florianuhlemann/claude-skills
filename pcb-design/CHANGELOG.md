@@ -1,5 +1,34 @@
 # pcb-design skill — changelog
 
+## 0.7.2 — 2026-10-19
+Corrective, from an external audit of the deployed skill: two checks that never fired, and doc fixes.
+- `assets/jlcpcb-4layer.kicad_dru`: rule "inner layer tracks (justify)" is now `(severity warning)` + `(constraint disallow track)` on In1.Cu/In2.Cu. Why: it was `track_width (min 0.2mm)`, so any inner track of 0.2 mm or wider passed silently although the comment promised every one would be flagged; each inner track now raises `items_not_allowed` and passes `drc_gate.py` only with its own justified allowlist line. The redundant `A.Type == 'Track'` term is dropped so arcs are caught as well.
+- `scripts/export_production.sh`: the revision check requires a `rev`/`v` prefix (case-insensitive, optional space or quote, so the title block `(rev "0.3")` counts) and no further digit after the revision. Why: the old pattern ended in the bare revision, so with rev 0.3 every 0.3 mm via drill satisfied it and the warning never fired. Loop over files instead of `grep -L`, so the result no longer depends on grep's `-L` exit status. Header now says the helper scripts come from the skill's own folder, not the project's `scripts/`.
+- `scripts/pdf_grep.sh`: checks for `pdfinfo` as well as `pdftotext`.
+- `references/jlcpcb-rules.md`: via pad stated once, as in the DRU: minimum hole + 0.15 mm (0.3/0.45 mm); JLC's hole + 0.1 mm named as JLC's capability, not this skill's rule.
+- `references/checklists.md`: layout item says an inner-layer track is a DRC warning that needs an allowlist line.
+- `SKILL.md`: scope names Claude Code with a local KiCad 10 as the target and the Claude app as rules and documents only; `scripts/` means `<skill dir>/scripts/`. Description shortened by 63 characters, trigger words unchanged. 228 → 230 lines.
+- `README.md`: install section says the same about Claude Code vs. the Claude app.
+- `scripts/README.md`: scripts live in the skill's folder; poppler needs for `pdf_grep.sh`; revision check described.
+- `scripts/drc_gate.py`: copy refreshed from pcb-audit 0.2.1 (v1.1 → v1.2); identical apart from the header line.
+
+## 0.7.1 — 2026-10-19
+Corrective: drill origin in the export chain, and the designer side of pcb-audit 0.2.0's findings format.
+- `export_production.sh`: drills exported with `--drill-origin plot` (the drill/place origin) instead of `absolute`, so gerbers (`--use-drill-file-origin`), drills and the position file share one origin. Why: on a board with an aux origin every hole landed offset from its pad by that origin; DRC passed and only a fab-file check caught it. Warns when the board sets no drill/place origin; the closing hint names pcb-audit's `check_fab_files.py`.
+- `references/jlcpcb-rules.md`: "absolute origin" replaced by the actual rule: one drill/place origin for all three exports, lying inside the board or at a corner so the CPL has no negative coordinates.
+- `references/checklists.md`: handover item for holes on pads in the exported files (pcb-audit's `check_fab_files.py`, or gerbers and drills in one viewer). Audit response: IDs cited with the report file name outside their report, `gated` names measurement, probe point or method and accept limit, the audit's **when** column sets the order of work.
+- `references/doc-templates.md`: audit response table headed by report file name, with a `gated` example and a cross-report ID.
+- `SKILL.md`: the Workflow sentence on answering findings says what `gated` carries; line count unchanged (228).
+- `references/lessons-learned.md`: two stories (mixed export origins; a sign-off carried across three revisions after a re-route tripled the loop).
+- `scripts/README.md`: export chain line and the not-shipped list updated.
+
+## 0.7.0 — 2026-10-19
+Split: pcb-design lays out, designs and delivers the board; all checking moves to the new sibling skill pcb-audit, which audits the milestone at every ⏸ gate.
+- `SKILL.md`: every ⏸ hands the milestone to pcb-audit (report in `docs/audits/`); the designer continues on PASS or once every finding is answered by ID (`closed` / `decided` / `gated` / `firmware` / `declined with numbers`). Self-audit, independent audit, audit premises, layout-lint and claims-pass text removed (now in pcb-audit). Frontmatter no longer triggers on reviewing, auditing or fixing, so the two skills do not both fire. 229 → 228 lines.
+- New **`Decouples` field convention**: every cap sharing a net with an IC supply pin carries `Decouples` = `<ref>:<pin number>` (`U1:12,U1:34`; pin numbers, never names) or `bulk`; it travels in the exported netlist. Layout: the assigned cap at its pin, power pad toward it, copper pin → cap pad → via/plane, GND via at the cap; distance and path measured by pcb-audit's decoupling check, not ticked. Why: on a shared VDD net the ratsnest draws only the shortest line, so it cannot show which cap serves which pin.
+- `references/checklists.md`: "Self-audit" section removed (moved to pcb-audit); pre-layout item for `Decouples`; layout decoupling item points at the measured check; script names dropped from the pad-exit and track-geometry items; handover asks for the gate-7 audit before the first order tag; audit response uses the shared status words and `A<gate>-<nn>` IDs. `doc-templates.md` audit table and `kicad-generation.md` netlist note updated to match.
+- Scripts: `audit_netlist.py`, `check_entry_angles.py`, `check_track_geometry.py` removed (they live in pcb-audit). `drc_gate.py` and `lint_stale_values.py` are now copies of pcb-audit's source, marked by a header line. `export_production.sh` no longer runs the claims list and the two layout lints (the gate-7 audit replaces them); stale-value lint, ERC, DRC gate and CPL fix unchanged. `preflight.sh` self-tests only the remaining scripts. Twelve scripts ship.
+
 ## 0.6.0 — 2026-10-17
 Trim. The rules and the script set are unchanged; SKILL.md is half the size.
 - `SKILL.md` cut to roughly half: one sentence per rule, details and checklists only in `references/`; the incidents behind the rules moved to `references/lessons-learned.md` ("The stories behind the rules").

@@ -4,7 +4,7 @@
 #   pdf_grep.sh <file.pdf> <regex> [context-chars]
 set -euo pipefail
 PDF="${1:?pdf}"; PAT="${2:?pattern}"
-command -v pdftotext >/dev/null || { echo "needs poppler (pdftotext)"; exit 1; }
+for t in pdftotext pdfinfo; do command -v "$t" >/dev/null || { echo "needs poppler ($t)"; exit 1; }; done
 N=$(pdfinfo "$PDF" | awk '/^Pages:/{print $2}')
 for ((p=1; p<=N; p++)); do
   if pdftotext -f "$p" -l "$p" -layout "$PDF" - 2>/dev/null | grep -Eiq -- "$PAT"; then

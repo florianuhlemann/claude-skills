@@ -1,7 +1,7 @@
 # Checklists
 
-Gate-1 catalog, self-audit, deep-read constraint types, handover and
-audit-response are **mandatory**. Pre-layout and layout lists are
+Gate-1 catalog, deep-read constraint types, handover and audit
+response are **mandatory**. Pre-layout and layout lists are
 guidelines: work through them, write the result into
 `docs/design-notes.md`, note explicitly what was skipped and why.
 
@@ -55,6 +55,7 @@ EC-table footnotes. Tick each type as "applies / value / checked":
 
 Power
 - [ ] Decoupling per power pin; bulk at every regulator in/out, DC-bias derated.
+- [ ] Every cap sharing a net with an IC supply pin carries `Decouples` = `<ref>:<pin number>` (several comma-separated, `U1:12,U1:34`; pin numbers, never names) or `Decouples=bulk`; the ratsnest cannot show the assignment, the field does.
 - [ ] Regulator stability caps per datasheet; dissipation at Vin max, Iout max, `calc_ambient`.
 - [ ] Input protection: reverse polarity, overvoltage, fuse. **Sub-1.5 V inputs:** no LCSC P-FET is specified for R_DS(on) below −1.5 V — use a low-side N-FET with the gate from a diode-OR of VBAT and the boosted rail, plus a Schottky bypass for start-up. A keyed holder is not reverse-polarity protection.
 - [ ] Low-quiescent battery devices: rail currents converted to **cell current** (V_out/V_in/η); FB-pin leakage vs. divider impedance; PFM reference offset (~+3 %); quiescent current of everything permanently on the rail; Zener/TVS leakage at the working voltage.
@@ -73,15 +74,6 @@ Radio / RF, sensors, mechanical, user
 
 Documentation
 - [ ] Part fields complete (LCSC, MPN, manufacturer, category with date, assembly type, stock, value/tolerance/rating/package); no standard-only part unless standard PCBA was accepted at gate 2; title blocks; `docs/key-values.md` started; firmware notes section started in design-notes.
-
-## Self-audit (mandatory before each gate)
-
-1. Export the netlist; `audit_netlist.py` checks every pin in `docs/netlist-expect.json` (written from `docs/parts/`, never from a generator) and runs the project's `scripts/netlist_checks.py` if present; run `--corrupt` once (negative control). Then compare the remaining pins by hand against the reference circuit **and** the deep-read constraint list.
-1a. **Per-resistor power check**: V²/R (or I²R) in the worst held state vs. package rating derated at `calc_ambient` — a 1 kΩ 0603 gate pull-down at 159 mW passed three readings. **Per-indicator failure case**: the LED must be visibly dark/lit in the fault it exists for (open load, blown fuse), computed with the real V_F and gain.
-1b. Duplicated parts (paralleled FETs, extra channels): re-run the paralleling checks (own gate resistor per device, current sharing, sense). Placeholders marked "finalised in schematic" are recomputed now.
-2. Write the deviation list (pin, reference value, actual, reason); fix or justify.
-3. Re-run the safety argument if any value in it changed.
-4. Put the lists into `docs/design-notes.md` under the component; update `docs/key-values.md`.
 
 ## Hand-fitted and mating parts (phase 5, `Fit=hand` and anything that mates)
 
@@ -117,13 +109,13 @@ Documentation
 - [ ] Body-to-edge ≥ 2.5 mm; rails expected under ~70 × 70 mm.
 - [ ] Placement review done before routing (F.Fab + ratsnest): two-pin parts in line with their connections, no avoidable crossings; dense areas planned on a courtyard map, not slot by slot; no hand route splits a net's cluster.
 - [ ] Silk markers counted per footprint before and after any silk clean-up (pin-1 triangles, polarity bars) — a clean-up once deleted markers and left bars that read as polarity.
-- [ ] Short loops for switching regulators; decoupling at pins with GND vias, power pad toward the IC pin; **decoupling distance measured pad-to-pin and listed per IC supply pin**.
+- [ ] Short loops for switching regulators; each cap at the pin its `Decouples` field names, power pad toward the pin, copper pin → cap pad → via/plane (never pin → via with the cap on the plane), GND via at the cap; **distance and pin → cap → via path are verified by pcb-audit's `check_decoupling.py`**, not ticked.
 - [ ] Resistance budget from the real fills, including the pin fan-out and thermal reliefs; SW-to-sensitive-net distances listed.
-- [ ] Pad exits per the layout rules (two-pin outward ≤ 45°; IC/connector pins along the long axis, turning outside the pad, GND included; no bend inside a pad; round pads through the centre) — `check_entry_angles.py` list attached with justifications.
-- [ ] Track geometry on the 45° grid, no acute corners / 45° T-branches outside pads, no zero-length or duplicate segments — `check_track_geometry.py` list attached.
+- [ ] Pad exits per the layout rules (two-pin outward ≤ 45°; IC/connector pins along the long axis, turning outside the pad, GND included; no bend inside a pad; round pads through the centre).
+- [ ] Track geometry on the 45° grid, no acute corners / 45° T-branches outside pads, no zero-length or duplicate segments.
 - [ ] Silk revision string equals the planned release tag.
 - [ ] **Power paths:** own net class per segment; pours/wide traces everywhere, necks only at fine-pitch pads; resistance budget per path (`calculations.md`) met.
-- [ ] Continuous GND under every signal; inner GND unbroken; RF fenced, 50 Ω.
+- [ ] Continuous GND under every signal; inner GND unbroken (any track on In1/In2 is a DRC warning, `items_not_allowed`, and needs its own allowlist line with the reason); RF fenced, 50 Ω.
 - [ ] Matched groups only above the frequency threshold; skew recorded.
 - [ ] GND stitching grid per conventions.
 - [ ] Vias within conventions; thermal vias under hot parts.
@@ -136,23 +128,31 @@ Documentation
 
 ## Handover checklist (production gate)
 
-- [ ] Independent audit of the release candidate done **before** the first order tag; premises checked against the board.
-- [ ] ERC and DRC clean (reports in `production/rev<X>/`); stale-value lint clean; **claims pass** done (`lint_stale_values.py --claims`: each listed sentence traced to a C-nn or a measurement).
+- [ ] Gate-7 audit of the release candidate done and answered **before** the first order tag.
+- [ ] ERC and DRC clean (reports in `production/rev<X>/`); stale-value lint clean.
 - [ ] If the project has generators: re-run, no diff under `hardware/`, schematic ↔ board parity.
 - [ ] Export chain outputs complete; CPL includes THT parts; rotations checked in JLC preview; table updated.
+- [ ] Holes on pads in the exported files: pcb-audit's `check_fab_files.py` on the production gerbers folder clean (or gerbers and drills opened together in one viewer).
 - [ ] BOM: every line LCSC + live category + live assembly type + stock ≥ `quantity` × qty + attrition; thin parts flagged; extended and standard-only parts listed with reasons; Basic/Preferred/Extended and standard-only counts in README.
 - [ ] Hand-assembled parts (if any) with their plan and cost in README.
 - [ ] `production/README.md` (isometric render at the top, release link, what it does), `bom_handfit.csv` with the hand-assembly plan, `CHANGELOG.md`, revision/date in **all** title blocks and silk, firmware notes current, STEP exported for the case owner, git tag on `main`.
 - [ ] Order-day re-check scheduled: stock, category, DFM, preview.
 
-## Audit response (after every external review)
+## Audit response (after every audit, gate or external)
 
 One table per audit in `docs/design-notes.md`:
 
-| ID | Finding | Status (closed / decided / gated / firmware) | Fix location (file, section, rev) |
+| ID | Finding | Status (closed / decided / gated / firmware / declined with numbers) | Fix location (file, section, rev) / numbers |
 
-Closed means the fix is in the files and the self-audit re-ran;
-"gated" names the gate (e.g. pre-order sample test) and the criterion;
-"declined" carries the numbers that refute the premise (fab minimum
-actually 0.2 mm, the quoted drawing belongs to another part, the neck
-does not exist in the fill). An audit reads as authoritative; it isn't.
+IDs are the audit's (`A<gate>-<nn>`); outside that report, cite them
+with its file name (`gate7-2026-10-19/A7-03`), since gate numbers repeat
+across revisions. Closed means the fix is in the files and the check
+that found it re-ran; "gated" names the measurement, the probe point or
+method and the accept limit, and the gate or build where it is taken
+(e.g. pre-order sample: ripple at C12, 20 MHz BW, ≤ 30 mV pp);
+"declined with numbers" carries the numbers that refute the premise
+(fab minimum actually 0.2 mm, the quoted drawing belongs to another
+part, the neck does not exist in the fill). The audit's **when** column
+(`before ordering` / `this spin if cheap` / `next revision` / `docs`)
+sets the order of work. A sign-off holds for the revision it was
+measured on; an audit reads as authoritative, and it isn't.

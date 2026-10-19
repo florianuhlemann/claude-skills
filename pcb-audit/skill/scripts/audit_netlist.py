@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-# Purpose: gate-4 self-audit — check the exported KiCad netlist pin by pin against datasheet-derived
+# Purpose: gate-4 audit (pcb-audit) — check the exported KiCad netlist pin by pin against datasheet-derived
 #          expectations, then run the project's own value checks (dividers, thresholds, power, structure)
 #          on the resistor values that are actually IN the netlist. Framework promoted from two boards;
 #          the expectations and checks are per project and are written independently of any generator.
-# Usage:   kicad-cli sch export netlist -o build/net.xml hardware/<board>.kicad_sch
-#          python3 scripts/audit_netlist.py build/net.xml [--expect docs/netlist-expect.json]
-#                                           [--checks scripts/netlist_checks.py] [--self-test]
+# Usage:   kicad-cli sch export netlist -o build/net.kicad_net hardware/<board>.kicad_sch   (Tier B), or
+#          pcb_nets.py hardware/<board>.kicad_pcb --write-net build/pcb.kicad_net            (Tier A: the board's
+#          pad nets in the same form; the shipped export is compared with pcb_nets.py --netlist)
+#          python3 audit_netlist.py build/net.kicad_net [--expect docs/netlist-expect.json]
+#                                           [--checks scripts/netlist_checks.py] [--corrupt] [--self-test]
 #          docs/netlist-expect.json:  {"U1": {"1": "BST", "2": "VBAT", ...}, "Q1": {"4": "GATE_Q1"}, ...}
 #                                     (pin -> net name; hierarchical prefixes are stripped)
 #          scripts/netlist_checks.py: def checks(comps, pins, fps, chk, two_terminal, rval): ...
@@ -118,6 +120,8 @@ def self_test():
     badc = dict(comps); badc["R1"] = "47k"
     f2, _ = run(badc, pins, fps, expect, ck)
     assert any("divider" in f for f in f2), f2
+    import shutil
+    shutil.rmtree(d, ignore_errors=True)
     print("self-test OK: 4 checks pass on the fixture; swapped U1.3 and a wrong R1 are both caught")
 
 

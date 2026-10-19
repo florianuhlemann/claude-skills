@@ -148,3 +148,13 @@ itself is stated there in one sentence.
 - **A "passing" check that checked nothing** — a zone script died in a
   pipe, DRC ran on the old board and reported 0 violations: verify the
   verifier, verify the edit in the file.
+- **One origin for gerbers, drills and CPL** — a production package
+  shipped with every drill offset from its pad by the board's aux
+  origin: gerbers used the drill/place origin, drills the absolute one.
+  DRC passed, since it checks the board, not the export; a fab-file
+  alignment check on the gerbers and drills caught it.
+- **A sign-off is a claim about one revision** — a loop length measured
+  on one revision was cited as the accepted value for three more
+  revisions after a re-route had tripled it. The audit re-measures on
+  the revision in front of it; a `gated` answer names what is measured,
+  where, and the limit.

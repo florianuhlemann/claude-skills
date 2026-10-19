@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copy of pcb-audit/scripts/lint_stale_values.py (pcb-audit 0.1.0); keep identical.
 """Fail if any 'Previous values' entry from docs/key-values.md still occurs
 in the project's documentation or schematic text.
 

@@ -14,7 +14,7 @@ Never state a part category or a fee from memory.
 | Stackup | JLC04161H-7628 (or current standard 4L) | ~0.2 mm prepreg outer, ~1.0 mm core; outer 1 oz, inner 0.5 oz. Use JLC's impedance calculator for the stack offered at order time. |
 | Thickness | 1.6 mm | |
 | Min trace / clearance | 0.127 / 0.127 mm design default | JLC allows ~0.09 mm on multilayer; use only for escapes, after checking. |
-| Via default / minimum | 0.3/0.6 mm · 0.3/0.45 mm | Pad ≥ hole + 0.1 mm (0.15 preferred). Hole < 0.3 mm with pad ≤ 0.4 mm costs extra; this skill never goes below 0.3 mm hole. |
+| Via default / minimum | 0.3/0.6 mm · 0.3/0.45 mm | Minimum pad = hole + 0.15 mm (0.45 mm for the 0.3 mm hole), as in `jlcpcb-4layer.kicad_dru`; JLC itself fabricates down to hole + 0.1 mm, which this skill does not use. Hole < 0.3 mm with pad ≤ 0.4 mm costs extra; this skill never goes below 0.3 mm hole. |
 | Hole to hole | ≥ 0.5 mm | |
 | PTH finished-hole tolerance | about −0.08 / +0.13 mm | Size hand-fitted holes against the **minimum**: measured lead + 0.2–0.25 mm. |
 | 2 oz copper min trace/space | 0.2 mm (8 mil), not 0.16 | An audit quoted 0.16 mm; check the capabilities page before accepting a copper-weight change. |
@@ -92,7 +92,11 @@ use `--smd-only`).
   silk, Protel extensions.
 - Layers: F.Cu, In1.Cu, In2.Cu, B.Cu, F.Paste, B.Paste, F.Silkscreen,
   B.Silkscreen, F.Mask, B.Mask, Edge.Cuts.
-- Drill: Excellon, PTH/NPTH separate, decimal, absolute origin.
+- Drill: Excellon, PTH/NPTH separate, decimal.
+- One origin for gerbers, drills and the position file: the drill/place
+  (aux) origin (`--use-drill-file-origin` / `--drill-origin plot`). It
+  lies inside the board or at a corner, so the CPL has no negative
+  coordinates. Mixed origins put every hole off its pad and pass DRC.
 - One `gerbers.zip` per revision.
 
 ## Surcharges to avoid

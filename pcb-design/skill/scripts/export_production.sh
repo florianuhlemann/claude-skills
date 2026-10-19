@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.6
+# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.7.2
 #
 # Usage: export_production.sh <project-dir> <rev>
-#   project-dir contains hardware/<name>.kicad_pro|.kicad_sch|.kicad_pcb,
-#   rotation-corrections.csv and the skill's fix_cpl_rotation.py in scripts/.
+#   project-dir contains hardware/<name>.kicad_pro|.kicad_sch|.kicad_pcb and
+#   rotation-corrections.csv. The helper scripts (kicad_env.sh, drc_gate.py,
+#   lint_stale_values.py, fix_cpl_rotation.py) are taken from this script's
+#   own folder, the skill's scripts/; the project needs no copies.
 #
 # Runs ERC + DRC first and aborts on errors, then exports gerbers, drills,
 # BOM (LCSC fields), position file -> JLC CPL, assembly PDF, STEP and
@@ -45,8 +47,13 @@ if [ -x "$PROJ/scripts/regenerate.sh" ]; then
 fi
 
 echo "== Revision consistency"
-grep -L "rev *$REV\|Rev *$REV\|$REV" "$HW"/*.kicad_sch "$PCB" 2>/dev/null | while read -r f; do
-  echo "WARNING: '$REV' not found in $f (title block / silk?)"; done
+# The revision only counts with a rev/v prefix: title block (rev "0.3"), silk "Rev 0.3" or "v0.3".
+# A bare 0.3 is every 0.3 mm via drill and proves nothing.
+REV_RE="(^|[^[:alpha:]])(rev|v) ?\"?${REV//./\\.}([^.0-9]|\$)"
+for f in "$HW"/*.kicad_sch "$PCB"; do
+  [ -f "$f" ] || continue
+  grep -qiE -- "$REV_RE" "$f" || echo "WARNING: revision '$REV' not found in $f (title block rev, silk 'rev $REV' / 'v$REV')"
+done
 
 echo "== ERC"
 kicad-cli sch erc --severity-all --exit-code-violations \
@@ -71,6 +78,9 @@ PY
 fi
 
 echo "== Gerbers"
+# Gerbers, drills and the position file all use the drill/place (aux) origin. It must sit inside
+# the board or at a corner (bottom-left is usual) so the CPL has no negative coordinates.
+grep -q '(aux_axis_origin' "$PCB" || echo "WARNING: no drill/place origin set in $PCB — exports use the page origin and the CPL gets negative Y; place it inside the board or at a corner"
 GERB="$OUT/gerbers"; mkdir -p "$GERB"
 # copper layer list from the board itself (2L boards have no In*.Cu)
 INNER="$(grep -oE '"In[0-9]+\.Cu"' "$PCB" | tr -d '"' | sort -t n -k 2 -n -u | paste -sd, -)"
@@ -82,9 +92,11 @@ kicad-cli pcb export gerbers \
   --output "$GERB/" "$PCB"
 
 echo "== Drills"
+# --drill-origin plot = the drill/place file origin, the same one --use-drill-file-origin gives the
+# gerbers and the position file. "absolute" here offset every hole from its pad by the aux origin.
 kicad-cli pcb export drill --format excellon --excellon-separate-th \
   --excellon-units mm --excellon-zeros-format decimal \
-  --drill-origin absolute --generate-map --map-format gerberx2 \
+  --drill-origin plot --generate-map --map-format gerberx2 \
   --output "$GERB/" "$PCB"
 (cd "$OUT" && rm -f gerbers.zip && zip -qr gerbers.zip gerbers)
 
@@ -108,14 +120,8 @@ std = [r["Designator"] for r in jlc if "standard" in (r.get("Assembly") or "").l
 print(f"   JLC lines: {len(jlc)}  hand-fit lines: {len(hand)}  standard-only: {len(std)} {std if std else ''}")
 PY
 
-echo "== Claims pass (trace each line to a C-nn or a measurement before tagging)"
-python3 "$SCRIPTS/lint_stale_values.py" "$PROJ" --claims > "$OUT/claims_to_trace.txt" || true
-tail -n 1 "$OUT/claims_to_trace.txt"
-
-echo "== Layout lints (reviewed at the gate; reports kept with the package)"
-python3 "$SCRIPTS/check_entry_angles.py" "$PCB" > "$OUT/lint_pad_exits.txt" || true
-python3 "$SCRIPTS/check_track_geometry.py" "$PCB" > "$OUT/lint_track_geometry.txt" || true
-head -n 1 "$OUT/lint_pad_exits.txt" "$OUT/lint_track_geometry.txt"
+# Claims pass and layout lints are not run here: the pcb-audit gate-7 audit of the
+# release candidate replaces them (before the first order tag).
 
 echo "== Position -> CPL"
 # SMD *and* THT: JLC economic PCBA fits THT parts, so they belong in the CPL.
@@ -142,4 +148,5 @@ kicad-cli pcb render --side bottom --width 2400 --height 1800 --quality high --o
 kicad-cli pcb render --side top --rotate "-30,0,-30" --zoom 0.9 --width 2400 --height 1800 --quality high --output "$RND/iso.png" "$PCB"
 
 echo "== Done: $OUT  renders: $RND"
-echo "Next: check cpl.csv rotations in the JLC order preview, fill production/README.md, CHANGELOG.md, git tag rev$REV"
+echo "Next: pcb-audit's check_fab_files.py on $GERB (holes on pads; or gerbers + drills in one viewer),"
+echo "      cpl.csv rotations in the JLC order preview, production/README.md, CHANGELOG.md, git tag rev$REV"

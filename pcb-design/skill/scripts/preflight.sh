@@ -28,7 +28,7 @@ PY
 then say "jlc api" "reachable"; else say "jlc api" "unreachable — jlc_search.py will fail; search jlcpcb.com/parts by hand and record category, assembly type, stock, date"; fi
 
 echo "== Skill scripts (self-tests)"
-for s in check_entry_angles.py check_track_geometry.py fix_cpl_rotation.py drc_gate.py build_lib.py fp_silk.py audit_netlist.py; do
+for s in fix_cpl_rotation.py drc_gate.py build_lib.py fp_silk.py; do
   if python3 "$SCRIPTS/$s" --self-test >/dev/null 2>&1; then say "$s" "self-test ok"; else say "$s" "SELF-TEST FAILED — run it directly"; ok=0; fi
 done
 

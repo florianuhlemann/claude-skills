@@ -65,9 +65,11 @@
 (rule "courtyard overlap"
   (constraint courtyard_clearance (min 0.0mm)))
 
-# Inner layers: keep them as planes; flag any track there so it must
-# be justified (a DRC warning via severity in the board settings is
-# the intent — adjust the severity of this rule in the board setup).
+# Inner layers: keep them as planes. Every track (or arc) on In1.Cu /
+# In2.Cu raises a DRC warning ("items_not_allowed"), whatever its width;
+# it passes the gate only with its own line in hardware/drc-allowlist.txt
+# carrying the justification (drc_gate.py). No-op on a 2-layer board.
 (rule "inner layer tracks (justify)"
-  (constraint track_width (min 0.2mm))
-  (condition "A.Type == 'Track' && (A.Layer == 'In1.Cu' || A.Layer == 'In2.Cu')"))
+  (severity warning)
+  (constraint disallow track)
+  (condition "A.Layer == 'In1.Cu' || A.Layer == 'In2.Cu'"))

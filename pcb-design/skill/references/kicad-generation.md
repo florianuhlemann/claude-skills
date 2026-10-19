@@ -35,9 +35,10 @@ Never assume the system `python3` can `import pcbnew`.
   ERC error; route through 0 Ω where the datasheet allows.
 - **Kelvin / sense points** as net ties in the schematic so layout can
   keep them.
-- **Self-audit tool**: export the netlist (`kicad-cli sch export
-  netlist`) and check pin by pin against the datasheet summary — the
-  most effective schematic check available without a GUI.
+- **Decoupling intent in the generator**: write the `Decouples` field
+  (`<ref>:<pin number>` or `bulk`) on every decoupling cap from the
+  generator's table; it travels in the exported netlist, which the gate-4
+  audit checks pin by pin against the datasheet summaries.
 
 ## Board generation and edits (pcbnew API, KiCad 10)
 
