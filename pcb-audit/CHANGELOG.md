@@ -1,4 +1,8 @@
 # pcb-audit skill — changelog
 
-## 0.1.0 — unreleased
-Skeleton: folder layout, frontmatter and scope statement. No content, no bundle yet.
+## 0.1.0 — 2026-10-19
+First release: the checking counterpart of pcb-design, used stand-alone on any KiCad 10 project and at every ⏸ gate of pcb-design's workflow.
+- `SKILL.md`: auditor's stance (independent, evidence per finding, premises checked against the board, report rather than fix), how an audit is run (stand-alone or one gate, inputs, full vs. reduced coverage), per-gate checks 1–8, the `Decouples` convention, findings format (`A<gate>-<nn>`, blocker/major/minor/note, PASS / PASS with findings / FAIL, `docs/audits/gate<N>-<YYYY-MM-DD>.md`).
+- `references/audit-procedure.md`: inputs and coverage table, per-gate detail, independent audit before the first order tag, the self-audit checklist (copied from pcb-design), severity guide. `references/findings-template.md`: report skeleton with designer response table. `references/lessons-learned.md`: the audit-relevant incidents, copied verbatim from pcb-design.
+- New `scripts/check_decoupling.py`: D1 unassigned cap, D2 assigned to a pin on another net, D3 supply pin without a cap (netlist); D4 pad-to-pin distance, D5 cap reached only through a via or the plane, D6 nearest same-net cap is not the assigned one, D7 no return via at the cap (board). Reads both netlist field forms, `--json`, `--self-test` (planted failures fail, clean variant passes), `--write-fixtures`.
+- Moved from pcb-design: `audit_netlist.py` (header now names the audit context and the `.kicad_net` export), `check_entry_angles.py`, `check_track_geometry.py`. Sourced here, copied by pcb-design: `drc_gate.py`, `lint_stale_values.py`. Copies of pcb-design's `sexpr.py` and `kicad_env.sh`. New `scripts/preflight.sh` (python3, kicad-cli, every self-test) and `scripts/README.md`.

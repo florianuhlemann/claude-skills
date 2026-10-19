@@ -9,7 +9,7 @@ Each skill lives in its own folder with a short README, a ready-to-upload `.skil
 | Skill | What it does |
 |---|---|
 | [pcb-design](pcb-design/) | Gated workflow for designing PCBs in KiCad 10 for JLCPCB fabrication and assembly, with design rules, LCSC sourcing, checklists and `kicad-cli` scripts. |
-| [pcb-audit](pcb-audit/) | In preparation: independent audit of an existing KiCad project before ordering. No release yet. |
+| [pcb-audit](pcb-audit/) | Independent audit of an existing KiCad 10 project, stand-alone or at each gate of pcb-design: netlist pin by pin, decoupling assignment, layout lints, DRC allowlist, production files, with findings and a verdict per gate. |
 
 ## Install
 

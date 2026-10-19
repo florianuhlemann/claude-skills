@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Copy of pcb-audit/scripts/drc_gate.py (pcb-audit 0.1.0); keep identical.
 """DRC gate for the export (v1.1): fail on anything that is not explicitly justified.
 
   python3 scripts/drc_gate.py <drc.json> <hardware/drc-allowlist.txt>

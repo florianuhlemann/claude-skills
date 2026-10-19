@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.6
+# Production export chain for the pcb-design skill (KiCad 10 kicad-cli). v0.7
 #
 # Usage: export_production.sh <project-dir> <rev>
 #   project-dir contains hardware/<name>.kicad_pro|.kicad_sch|.kicad_pcb,
@@ -108,14 +108,8 @@ std = [r["Designator"] for r in jlc if "standard" in (r.get("Assembly") or "").l
 print(f"   JLC lines: {len(jlc)}  hand-fit lines: {len(hand)}  standard-only: {len(std)} {std if std else ''}")
 PY
 
-echo "== Claims pass (trace each line to a C-nn or a measurement before tagging)"
-python3 "$SCRIPTS/lint_stale_values.py" "$PROJ" --claims > "$OUT/claims_to_trace.txt" || true
-tail -n 1 "$OUT/claims_to_trace.txt"
-
-echo "== Layout lints (reviewed at the gate; reports kept with the package)"
-python3 "$SCRIPTS/check_entry_angles.py" "$PCB" > "$OUT/lint_pad_exits.txt" || true
-python3 "$SCRIPTS/check_track_geometry.py" "$PCB" > "$OUT/lint_track_geometry.txt" || true
-head -n 1 "$OUT/lint_pad_exits.txt" "$OUT/lint_track_geometry.txt"
+# Claims pass and layout lints are not run here: the pcb-audit gate-7 audit of the
+# release candidate replaces them (before the first order tag).
 
 echo "== Position -> CPL"
 # SMD *and* THT: JLC economic PCBA fits THT parts, so they belong in the CPL.

@@ -1,8 +1,8 @@
 ---
 name: pcb-design
-description: House rules for designing printed circuit boards in KiCad 10 for JLCPCB fabrication and economic assembly — gated workflow (requirements → architecture → datasheet deep read → schematic → library → layout → production → retrospective), project parameters, 4-layer stackup, via/stitching rules, LCSC sourcing with live category and stock checks, project-local library, single-source key values, calculations and FMEA, kicad-cli ERC/DRC/export chain, 3D renders. Use this skill whenever the user mentions a PCB, circuit board, schematic, KiCad, JLCPCB, LCSC, footprint, gerber, BOM, stackup, layout, routing, or asks to "design a circuit/board for…", even if only a component, module, or MCU is named and the word "PCB" never appears. Also use it when reviewing, auditing, fixing, or preparing an existing KiCad project for production, and when writing a project retrospective for a board. Enclosure/case CAD design is out of scope — the skill only collects the mechanical constraints a board must respect.
+description: House rules for designing printed circuit boards in KiCad 10 for JLCPCB fabrication and economic assembly — gated workflow (requirements → architecture → datasheet deep read → schematic → library → layout → production → retrospective), project parameters, 4-layer stackup, via/stitching rules, LCSC sourcing with live category and stock checks, project-local library, single-source key values, calculations and FMEA, kicad-cli ERC/DRC/export chain, 3D renders. Use this skill whenever the user mentions a PCB, circuit board, schematic, KiCad, JLCPCB, LCSC, footprint, gerber, BOM, stackup, layout, routing, or asks to "design a circuit/board for…", even if only a component, module, or MCU is named and the word "PCB" never appears. Also use it when preparing an existing KiCad project for production, and when writing a project retrospective for a board. Enclosure/case CAD design is out of scope — the skill only collects the mechanical constraints a board must respect.
 metadata:
-  version: "0.6.0"
+  version: "0.7.0"
 ---
 
 # PCB design (KiCad 10 → JLCPCB)
@@ -13,12 +13,13 @@ below prevents a mistake that has actually happened on a board
 (`references/lessons-learned.md` has the stories). When a rule gets in
 the way, say why and ask — see "When to stop and ask".
 
-**Scope.** Rules, checklists, documentation and the production chain.
-Not in scope: enclosure/case design (the board delivers a STEP and its
-mechanical constraints), firmware, and project-specific generators or
-routing tools. Before the first gate run `bash scripts/preflight.sh`
-once: it tells you whether kicad-cli and the JLC parts API are reachable
-and what to do by hand if not.
+**Scope.** Laying out, designing and delivering the board: rules,
+checklists, documentation, production chain; checking is the gate
+audit's (see Workflow). Not in scope: enclosure/case design (the board
+delivers a STEP and its mechanical constraints), firmware, and
+project-specific generators or routing tools. Before the first gate
+run `bash scripts/preflight.sh` once: it tells you whether kicad-cli
+and the JLC parts API are reachable and what to do by hand if not.
 
 ## Project parameters (gate 1, `docs/requirements.md`)
 
@@ -52,21 +53,25 @@ Every rule refers to these, never to a hard-coded number.
 | Documentation | Written as you go. `docs/key-values.md` is the single source for every number used in more than one place. Undocumented = not done. |
 | Git | `main` + tags from day one (`rev0.1`… at production gates, `v1.0` at release); commit at every gate. |
 
-## Workflow — stop at every ⏸, present, wait
+## Workflow — stop at every ⏸, present, hand to the audit, wait
 
 Rework after layout costs ten times rework at the schematic. Details
 and the checklists for each gate are in `references/checklists.md`.
+At every ⏸ hand the milestone to the **pcb-audit** skill, the checking
+counterpart (per-gate audit, report in `docs/audits/`); continue on
+PASS or once every finding is answered by ID — `closed` / `decided` /
+`gated` / `firmware` / `declined with numbers`, with fix location.
 
 1. **Requirements** — parameter block, purpose, interfaces, rails,
    must/should/could; the fixed gate-1 question catalog in one round;
    mechanical inputs from the case owner (outline, holes, keep-outs,
    edge-facing ports, display mount, battery access, labels) — fixed
    here, never "provisional"; assumption audit of any concept document;
-   single-fault table per power path. ⏸
+   single-fault table per power path. ⏸ *audit gate 1.*
 2. **Architecture & parts** — block diagram in `docs/design-notes.md`;
    candidate parts with LCSC number, live category, stock and assembly
    type, supply window vs. rail; placement sketch if the form factor is
-   open; cost in one line. ⏸
+   open; cost in one line. ⏸ *audit gate 2.*
 3. **Datasheets & calculations** — PDFs into `docs/datasheets/`
    (`jlc_search.py --datasheet`, `pdf_grep.sh` for page refs). One
    `docs/parts/<mpn>.md` per active IC from a **deep read** of the
@@ -74,41 +79,38 @@ and the checklists for each gate are in `references/checklists.md`.
    `docs/calculations.md` with power budget, start `docs/key-values.md`
    and the firmware-notes section of design-notes.
 4. **Schematic** — hierarchical sheets per block; ERC zero errors;
-   pre-layout checklist; **self-audit** pin by pin against the exported
-   netlist (`audit_netlist.py` with `docs/netlist-expect.json` written
-   from `docs/parts/`, `--corrupt` as negative control), reference
-   circuit **and** deep-read constraints, with a per-resistor power
-   check. Held as its own gate even in a rework. ⏸
-   *Schematic PDF, checklist, deviation list, single-fault table (+ FMEA).*
+   pre-layout checklist; `Decouples` on every decoupling cap;
+   `docs/netlist-expect.json` written from `docs/parts/` (never from a
+   generator); deviation list against reference circuit and deep-read
+   constraints. Held as its own gate even in a rework. ⏸ *audit gate 4:
+   schematic PDF, netlist, checklist, deviations, single-fault table
+   (+ FMEA).*
 5. **Library & 3D** — project library only (`lib/`, built by
    `build_lib.py` from `lib/manifest.json`), footprints checked against
    the land pattern, silk convention applied and linted with
    `fp_silk.py`, real 3D models for anything with a height or a mating
-   part; hand-fitted and
-   mating parts **measured in hand** (hole = largest lead + 0.2–0.25 mm
-   at JLC's −0.08 mm plating tolerance). ⏸ *only for hand-made
-   footprints, placeholders or model/datasheet disagreements.*
+   part; hand-fitted and mating parts **measured in hand** (hole =
+   largest lead + 0.2–0.25 mm at JLC's −0.08 mm plating tolerance).
+   ⏸ *audit gate 5, only for hand-made footprints, placeholders or
+   model/datasheet disagreements.*
 6. **Layout** — outline and holes from the mechanical inputs, placement
    by block, **placement review before any routing** (F.Fab + ratsnest:
    two-pin parts in line with their connections, passive rows in one
    orientation). Then pours and current-path classes, RF/high-speed,
    the rest; autorouting only for non-critical nets afterwards. DRC with
    `assets/jlcpcb-4layer.kicad_dru`, zero errors, warnings justified in
-   `hardware/drc-allowlist.txt` (`drc_gate.py`); layout lints run and
-   reviewed. ⏸ *Renders, DRC, resistance budget, measured decoupling
-   distances, skew table, lint lists with justifications.*
-7. **Production** — independent audit of the release candidate
-   **before** the first order tag; `scripts/export_production.sh`;
-   claims pass (`lint_stale_values.py --claims`); `production/README.md`
-   with the isometric render first; revision + date in title blocks and
-   silk (silk revision = tag); changelog; tag. Stock, category and
-   assembly type re-checked **on order day**, CPL rotations in JLC's
-   preview. ⏸
-8. **Audits & retrospective** — answer every audit ID by ID (closed /
-   decided / gated / firmware, fix location); check each premise
-   against the board first — declining with numbers is a valid status.
-   After release: `docs/retrospective.md`, lessons appended to
-   `references/lessons-learned.md`, proposed skill changes.
+   `hardware/drc-allowlist.txt` (`drc_gate.py`). ⏸ *audit gate 6:
+   renders, DRC, allowlist, resistance budget, skew table.*
+7. **Production** — `scripts/export_production.sh`;
+   `production/README.md` with the isometric render first; revision +
+   date in title blocks and silk (silk revision = tag); changelog.
+   ⏸ *audit gate 7 of the release candidate **before** the first order
+   tag*, then tag. Stock, category and assembly type re-checked **on
+   order day**, CPL rotations in JLC's preview.
+8. **Audits & retrospective** — every audit, external ones included,
+   answered ID by ID as above. After release: `docs/retrospective.md`,
+   lessons appended to `references/lessons-learned.md`, proposed skill
+   changes.
 
 ## Project structure
 
@@ -119,7 +121,7 @@ and the checklists for each gate are in `references/checklists.md`.
 │                       footprints, 3d/ (${KIPRJMOD} paths), built by build_lib.py
 ├── docs/               requirements, key-values, design-notes, calculations,
 │                       interfaces, (fmea), datasheets/, parts/, netlist-expect.json,
-│                       retrospective
+│                       audits/, retrospective
 ├── production/rev<X>/  gerbers.zip, bom.csv, cpl.csv, pdfs, step, erc/drc
 ├── production/README.md · renders/rev<X>/ · scripts/ · rotation-corrections.csv · CHANGELOG.md
 ```
@@ -159,16 +161,18 @@ and the checklists for each gate are in `references/checklists.md`.
   points as net ties, a note per IC, test points on every rail and key
   signal, debug header, title block. Small-package MCUs: check bonded
   pins against the alternate-function table.
-- Decoupling within 1–2 mm of the pin, **measured pad-to-pin and
-  listed per supply pin** at the layout gate; power pad toward the pin,
-  GND pad at its via.
-- **Pad exits** (`check_entry_angles.py`): two-pin parts leave outward
-  ≤ 45° off the pad axis; IC and connector pins exit along the long
-  axis and turn only outside the pad, GND included; no bend inside a
-  pad; round pads entered through the centre.
-- **Track geometry** (`check_track_geometry.py`): 45° grid, no acute
-  corners or 45° T-branches outside pads, no zero-length or duplicate
-  segments.
+- **Decoupling:** every cap sharing a net with an IC supply pin carries
+  the symbol field `Decouples` = `<ref>:<pin number>` (`U1:12,U1:34`;
+  pin numbers, never names) or `Decouples=bulk` — the ratsnest cannot
+  show which cap serves which pin, the field does. In layout the
+  assigned cap sits within 1–2 mm of its pin, power pad toward it,
+  copper pin → cap pad → via/plane (never pin → via with the cap hanging
+  on the plane), GND via at the cap; measured at the audit, not ticked.
+- **Pad exits:** two-pin parts leave outward ≤ 45° off the pad axis; IC
+  and connector pins exit along the long axis and turn only outside the
+  pad, GND included; no bend inside a pad; round pads through the centre.
+- **Track geometry:** 45° grid, no acute corners or 45° T-branches
+  outside pads, no zero-length or duplicate segments.
 - Every signal over continuous GND, inner GND unbroken, RF short and
   fenced. Body-to-edge ≥ 2.5 mm; JLC adds rails under ~70 × 70 mm. No
   wave soldering next to SMT standoffs. Nothing on silk over pads or
@@ -180,16 +184,11 @@ and the checklists for each gate are in `references/checklists.md`.
 
 - ERC/DRC via `kicad-cli` after every meaningful change: zero errors,
   all severities reported, warnings justified in writing.
-- **Verify the verifier:** every automated check gets a negative
-  control once (make it fail on purpose), then is trusted. A lint
-  encodes the rule's purpose, not one formula; every miss a person
-  catches becomes a self-test case.
-- Lint lists are reviewed item by item with justifications, not driven
-  to zero and not waved through with one class justification.
-- `lint_stale_values.py` finds **old** numbers from `key-values.md`;
-  the claims pass (`--claims`) lists every sentence asserting a
-  protection, distance or direction, each traced to a C-nn or a
-  measurement before the tag.
+- **Verify the verifier:** every automated step (DRC gate, silk lint,
+  generator) gets a negative control once (make it fail on purpose),
+  then is trusted.
+- `lint_stale_values.py` finds **old** numbers from `key-values.md`
+  before every tag.
 - **Measurements beat drawings and drawings beat memory**: when the
   owner can measure it, the measurement is the input.
 
@@ -219,11 +218,11 @@ recommend one, wait.
 
 ## Reference files
 
-- `references/checklists.md` — gate-1 catalog, single-fault table, deep-read constraint types, pre-layout, self-audit, hand-fitted parts, 2-layer, footprint validation, layout, handover, audit response.
+- `references/checklists.md` — gate-1 catalog, single-fault table, deep-read constraint types, pre-layout, hand-fitted parts, 2-layer, footprint validation, layout, handover, audit response.
 - `references/jlcpcb-rules.md` — fab and economic-PCBA constraints (verified 2026-10-16), export settings, surcharges.
 - `references/calculations.md` — template, standard set, power budget, low-Iq battery, resistance budget, igniter energy.
 - `references/doc-templates.md` — parts summary, key-values, interfaces, production README, changelog, FMEA, firmware notes, audit table.
 - `references/kicad-generation.md` — scripted schematic/board generation and pcbnew pitfalls, Freerouting scope, verify-the-verifier.
 - `references/lessons-learned.md` — the boards behind the rules; append after each retrospective.
 - `assets/jlcpcb-4layer.kicad_dru`, `assets/rotation-corrections.csv`
-- `scripts/README.md` — the fifteen shipped scripts, by gate.
+- `scripts/README.md` — the twelve shipped scripts, by gate.

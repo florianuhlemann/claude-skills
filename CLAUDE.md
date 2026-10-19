@@ -26,8 +26,18 @@ and reports back. The manager reviews the diff, commits and opens the PR.
 
 | Skill | Agent | State |
 |---|---|---|
-| `pcb-design/` | `.claude/agents/pcb-design.md` | released, 0.6.0 |
-| `pcb-audit/` | `.claude/agents/pcb-audit.md` | skeleton, no release yet |
+| `pcb-design/` | `.claude/agents/pcb-design.md` | design and deliver: gates 1–8, library, layout, production chain |
+| `pcb-audit/` | `.claude/agents/pcb-audit.md` | check: per-gate audit of an existing project, run at every ⏸ gate of pcb-design |
+
+The two skills install separately, so each ships every script it runs. A
+script both need exists in both folders, byte-identical apart from a header
+line naming the source skill; the check scripts (`drc_gate.py`,
+`lint_stale_values.py`) are sourced in `pcb-audit`, infrastructure
+(`sexpr.py`, `kicad_env.sh`) in `pcb-design`. Whoever changes a shared
+script briefs the other agent to refresh its copy in the same release. The
+findings format (`A<gate>-<nn>`, severities, status words) and the
+`Decouples` field convention are shared vocabulary and change only in both
+skills at once.
 
 ## Rules that apply to every skill
 

@@ -1,5 +1,12 @@
 # pcb-design skill — changelog
 
+## 0.7.0 — 2026-10-19
+Split: pcb-design lays out, designs and delivers the board; all checking moves to the new sibling skill pcb-audit, which audits the milestone at every ⏸ gate.
+- `SKILL.md`: every ⏸ hands the milestone to pcb-audit (report in `docs/audits/`); the designer continues on PASS or once every finding is answered by ID (`closed` / `decided` / `gated` / `firmware` / `declined with numbers`). Self-audit, independent audit, audit premises, layout-lint and claims-pass text removed (now in pcb-audit). Frontmatter no longer triggers on reviewing, auditing or fixing, so the two skills do not both fire. 229 → 228 lines.
+- New **`Decouples` field convention**: every cap sharing a net with an IC supply pin carries `Decouples` = `<ref>:<pin number>` (`U1:12,U1:34`; pin numbers, never names) or `bulk`; it travels in the exported netlist. Layout: the assigned cap at its pin, power pad toward it, copper pin → cap pad → via/plane, GND via at the cap; distance and path measured by pcb-audit's decoupling check, not ticked. Why: on a shared VDD net the ratsnest draws only the shortest line, so it cannot show which cap serves which pin.
+- `references/checklists.md`: "Self-audit" section removed (moved to pcb-audit); pre-layout item for `Decouples`; layout decoupling item points at the measured check; script names dropped from the pad-exit and track-geometry items; handover asks for the gate-7 audit before the first order tag; audit response uses the shared status words and `A<gate>-<nn>` IDs. `doc-templates.md` audit table and `kicad-generation.md` netlist note updated to match.
+- Scripts: `audit_netlist.py`, `check_entry_angles.py`, `check_track_geometry.py` removed (they live in pcb-audit). `drc_gate.py` and `lint_stale_values.py` are now copies of pcb-audit's source, marked by a header line. `export_production.sh` no longer runs the claims list and the two layout lints (the gate-7 audit replaces them); stale-value lint, ERC, DRC gate and CPL fix unchanged. `preflight.sh` self-tests only the remaining scripts. Twelve scripts ship.
+
 ## 0.6.0 — 2026-10-17
 Trim. The rules and the script set are unchanged; SKILL.md is half the size.
 - `SKILL.md` cut to roughly half: one sentence per rule, details and checklists only in `references/`; the incidents behind the rules moved to `references/lessons-learned.md` ("The stories behind the rules").
