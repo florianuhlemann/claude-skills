@@ -416,8 +416,8 @@ would have saved two releases.
 
 ## Self-audit checklist
 
-Taken over from pcb-design 0.6.0, which no longer carries it; this is
-now its only copy. The auditor confirms each step was done and repeats
+Taken over from pcb-design 0.6.0; pcb-design removed it in 0.7.0, so
+this is now its only copy. The auditor confirms each step was done and repeats
 1 and 1a itself.
 
 1. Export the netlist; `audit_netlist.py` checks every pin in `docs/netlist-expect.json` (written from `docs/parts/`, never from a generator) and runs the project's `scripts/netlist_checks.py` if present; run `--corrupt` once (negative control). Then compare the remaining pins by hand against the reference circuit **and** the deep-read constraint list.

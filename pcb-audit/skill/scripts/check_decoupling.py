@@ -281,7 +281,7 @@ NETLIST = """(export (version "E")
    (property (name "Decouples") (value "{C1}")))
   (comp (ref "C2") (value "100n") (footprint "lib:C_0402")
    (fields (field (name "Footprint") "lib:C_0402") (field (name "Decouples") "{C2}")))
-  (comp (ref "C3") (value "10u") (footprint "lib:C_0805")
+  (comp (ref "C3") (value "10u") (footprint "lib:C_0402")
    (property (name "Decouples") (value "bulk")))
   (comp (ref "C4") (value "100n") (footprint "lib:C_0402")
    (property (name "Decouples") (value "U2:1")))
@@ -291,26 +291,27 @@ NETLIST = """(export (version "E")
  (nets
   (net (code "1") (name "/VDD") (node (ref "U1") (pin "1") (pinfunction "VDD") (pintype "power_in"))
    (node (ref "U1") (pin "3") (pinfunction "VDD") (pintype "power_in"))
-   (node (ref "C1") (pin "1")) (node (ref "C2") (pin "1")) (node (ref "C3") (pin "1")) {EXTRA_VDD})
+   (node (ref "C1") (pin "2")) (node (ref "C2") (pin "1")) (node (ref "C3") (pin "1")) {EXTRA_VDD})
   (net (code "2") (name "GND") (node (ref "U1") (pin "2") (pinfunction "GND") (pintype "power_in"))
    (node (ref "U2") (pin "2") (pinfunction "GND") (pintype "power_in"))
    (node (ref "U3") (pin "2") (pinfunction "GND") (pintype "power_in"))
-   (node (ref "C1") (pin "2")) (node (ref "C2") (pin "2")) (node (ref "C3") (pin "2"))
-   (node (ref "C4") (pin "2")) (node (ref "C5") (pin "2")) {EXTRA_GND})
+   (node (ref "C1") (pin "1")) (node (ref "C2") (pin "2")) (node (ref "C3") (pin "2"))
+   (node (ref "C4") (pin "1")) (node (ref "C5") (pin "1")) {EXTRA_GND})
   (net (code "3") (name "/SIG") (node (ref "U1") (pin "4") (pinfunction "PA0") (pintype "bidirectional")) {EXTRA_SIG})
-  (net (code "4") (name "/VIN") (node (ref "U2") (pin "1") (pinfunction "VIN") (pintype "power_in")) (node (ref "C4") (pin "1")))
-  (net (code "5") (name "/VS") (node (ref "U3") (pin "1") (pinfunction "VDD") (pintype "power_in")) (node (ref "C5") (pin "1")))))
+  (net (code "4") (name "/VIN") (node (ref "U2") (pin "1") (pinfunction "VIN") (pintype "power_in")) (node (ref "C4") (pin "2")))
+  (net (code "5") (name "/VS") (node (ref "U3") (pin "1") (pinfunction "VDD") (pintype "power_in")) (node (ref "C5") (pin "2")))))
 """
 
 
-def cap0402(ref, x, y, rotd, n1, n2):
-    return (f' (footprint "C_0402" (layer "F.Cu") (at {x} {y} {rotd})\n  (property "Reference" "{ref}")\n'
+def cap0402(ref, x, y, rotd, n1, n2, value="100n"):
+    return (f' (footprint "lib:C_0402" (layer "F.Cu") (at {x} {y} {rotd})\n'
+            f'  (property "Reference" "{ref}") (property "Value" "{value}")\n'
             f'  (pad "1" smd roundrect (at -0.5 0 {rotd}) (size 0.6 0.6) (layers "F.Cu" "F.Mask" "F.Paste") (net "{n1}"))\n'
             f'  (pad "2" smd roundrect (at 0.5 0 {rotd}) (size 0.6 0.6) (layers "F.Cu" "F.Mask" "F.Paste") (net "{n2}")))\n')
 
 
-def ic(ref, x, y, pins):
-    s = f' (footprint "IC" (layer "F.Cu") (at {x} {y})\n  (property "Reference" "{ref}")\n'
+def ic(ref, lib, value, x, y, pins):
+    s = f' (footprint "{lib}" (layer "F.Cu") (at {x} {y})\n  (property "Reference" "{ref}") (property "Value" "{value}")\n'
     for num, px, py, net in pins:
         s += f'  (pad "{num}" smd rect (at {px} {py}) (size 1.0 0.4) (layers "F.Cu" "F.Mask") (net "{net}"))\n'
     return s + " )\n"
@@ -327,7 +328,8 @@ def via(p, net):
 def fixtures(clean):
     """Clean: every cap at its pin, track pin -> cap pad, GND via at the return pad.
     Planted: C1/C2 assignment swapped, C4 reached only through a via, C5 zone-fed without
-    GND via, C6 unassigned on VDD, C7 assigned to a signal pin, U1.5 (second VDD pin) without a cap."""
+    GND via, C6 unassigned on VDD, C7 assigned to a signal pin, U1.5 (second VDD pin) without a cap.
+    In both pairs the netlist matches the board (pcb_nets parity, asserted in the self-test)."""
     c1, c2 = ("U1:1", "U1:3") if clean else ("U1:3", "U1:1")
     extra = extra_vdd = extra_gnd = extra_sig = ""
     if not clean:
@@ -340,30 +342,33 @@ def fixtures(clean):
            .replace("{EXTRA_VDD}", extra_vdd).replace("{EXTRA_GND}", extra_gnd).replace("{EXTRA_SIG}", extra_sig))
     b = '(kicad_pcb (version 20251001)\n (net 0 "") (net 1 "/VDD") (net 2 "GND") (net 3 "/SIG") (net 4 "/VIN") (net 5 "/VS")\n'
     # U1: pin 1 at (19.5,10), pin 3 at (19.5,14) (left side), GND pin 2 at (19.5,12), SIG pin 4 at (22.5,12)
-    b += ic("U1", 20, 12, [("1", -0.5, -2, "/VDD"), ("2", -0.5, 0, "GND"), ("3", -0.5, 2, "/VDD"), ("4", 2.5, 0, "/SIG")])
+    u1 = [("1", -0.5, -2, "/VDD"), ("2", -0.5, 0, "GND"), ("3", -0.5, 2, "/VDD"), ("4", 2.5, 0, "/SIG")]
+    if not clean:
+        u1.append(("5", 2.5, 2, "/VDD"))                 # second VDD pin, at (22.5,14), no track, no cap
+    b += ic("U1", "lib:QFN", "MCU", 20, 12, u1)
     b += cap0402("C1", 17.0, 10, 0, "GND", "/VDD")        # C1 pad 2 (VDD) at 17.5,10 -> 1.0 mm edge gap to U1.1
     b += seg((17.5, 10), (19.5, 10), "/VDD") + via((16.5, 10.9), "GND")
-    b += f' (footprint "C_0402" (layer "F.Cu") (at 17.0 14 180)\n  (property "Reference" "C2")\n' \
+    b += f' (footprint "lib:C_0402" (layer "F.Cu") (at 17.0 14 180)\n  (property "Reference" "C2") (property "Value" "100n")\n' \
          '  (pad "1" smd roundrect (at -0.5 0 180) (size 0.6 0.6) (layers "F.Cu" "F.Mask") (net 1))\n' \
          '  (pad "2" smd roundrect (at 0.5 0 180) (size 0.6 0.6) (layers "F.Cu" "F.Mask") (net 2 "GND")))\n'
     # C2 rotated 180: pad 1 (VDD) lands at 17.5,14; numbered-net form; both joins are T-joins onto a vertical bar
     b += seg((19.5, 14), (18.5, 14), "/VDD") + seg((18.5, 13), (18.5, 16), "/VDD") + seg((18.5, 15), (17.5, 14), "/VDD")
     b += via((16.5, 14.9), "GND")
-    b += cap0402("C3", 30, 30, 0, "/VDD", "GND")          # bulk, far away
-    b += ic("U2", 40, 12, [("1", -0.5, 0, "/VIN"), ("2", 0.5, 0, "GND")])
+    b += cap0402("C3", 30, 30, 0, "/VDD", "GND", "10u")   # bulk, far away
+    b += ic("U2", "lib:SOT-23-5", "LDO", 40, 12, [("1", -0.5, 0, "/VIN"), ("2", 0.5, 0, "GND")])
     b += cap0402("C4", 37.0, 12, 0, "GND", "/VIN") + via((36.5, 12.9), "GND")
     if clean:
         b += seg((37.5, 12), (39.5, 12), "/VIN")
     else:  # pin -> via -> track -> cap: the via comes first
         b += seg((39.5, 12), (38.5, 12), "/VIN") + via((38.5, 12), "/VIN") + seg((38.5, 12), (37.5, 12), "/VIN")
-    b += ic("U3", 40, 20, [("1", -0.5, 0, "/VS"), ("2", 0.5, 0, "GND")])
+    b += ic("U3", "lib:SOT-23-5", "SENSOR", 40, 20, [("1", -0.5, 0, "/VS"), ("2", 0.5, 0, "GND")])
     b += cap0402("C5", 37.0, 20, 0, "GND", "/VS")
     if clean:
         b += seg((37.5, 20), (39.5, 20), "/VS") + via((36.5, 20.9), "GND")
     else:  # no track: fed through the plane only, and no GND via at its return pad
         b += via((39.5, 21.0), "/VS") + via((37.5, 20.9), "/VS")
     if not clean:
-        b += cap0402("C6", 10, 30, 0, "/VDD", "GND") + via((9.5, 30.9), "GND")
+        b += cap0402("C6", 10, 30, 0, "/VDD", "GND", "1u") + via((9.5, 30.9), "GND")
         b += cap0402("C7", 10, 40, 0, "/VDD", "GND") + via((9.5, 40.9), "GND")
     return net, b + ")\n"
 
@@ -383,6 +388,11 @@ def write_fixtures(d):
 def self_test():
     tmp = tempfile.mkdtemp()
     paths = write_fixtures(tmp)
+    from pcb_board import load as _load
+    from pcb_nets import parity
+    for name, (np_, bp) in paths.items():                # D4-D7 run on a pair whose netlist is the board's
+        diffs, _ = parity(_load(bp), np_)
+        assert not diffs, (name, diffs)
     rows, f, s = analyse(*paths["clean"])
     assert not f, f
     assert s["assigned"] == 4 and s["bulk"] == 1, s
@@ -403,7 +413,7 @@ def self_test():
     _, f2, s2 = analyse(paths["planted"][0])
     assert not s2["board"] and {"D1", "D2"} <= {x["check"] for x in f2} and not {"D4", "D5", "D6", "D7"} & {x["check"] for x in f2}
     shutil.rmtree(tmp, ignore_errors=True)
-    print("self-test OK: clean variant passes (property and fields forms, rotated cap, numbered nets, T-join); "
+    print("self-test OK: both fixture pairs pass board <-> netlist parity; clean variant passes (property and fields forms, rotated cap, numbered nets, T-join); "
           "planted variant flags unassigned C6, C7 on another net, uncovered U1.5, swapped C1/C2 (distance, plane path, "
           "nearest cap), via-first C4, zone-fed C5 without GND via")
 

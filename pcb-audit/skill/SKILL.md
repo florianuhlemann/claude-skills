@@ -2,7 +2,7 @@
 name: pcb-audit
 description: Independent audit of an existing KiCad 10 project before it moves on or is ordered — requirements, parts, datasheet claims, schematic and netlist, project library, layout, production files (gerbers, drills, BOM, CPL) checked against the project's requirements and the rules it claims to follow, with finding IDs, evidence, severity and a verdict per gate. Runs with or without KiCad installed (board, netlist and gerbers are parsed directly), re-measures every sign-off on the current revision, measures routed copper instead of straight lines, checks drills against copper in the fab files, and checks that each decoupling capacitor serves the pin it was added for. Use when the user asks to audit, review, check, verify or sign off a board, schematic, layout, gerbers, BOM or CPL, asks for a second opinion, a gate review or "is this ready to order", or when a design workflow hands a milestone over at a gate. Designing, routing or exporting a board is not this skill.
 metadata:
-  version: "0.2.0"
+  version: "0.2.1"
 ---
 
 # PCB audit (KiCad 10 → JLCPCB)
@@ -29,10 +29,13 @@ stories behind the rules are in `references/lessons-learned.md`.
 ## How an audit is run
 
 1. `bash scripts/preflight.sh`: python3, every self-test, and the tier.
-2. **Tier A, always available**, a full audit from the files: pad nets,
-   copper, zones, vias and drills from the `.kicad_pcb`; schematic files
-   and the netlist export when the project ships one; docs; production
-   files (gerbers, drills, BOM, CPL).
+   `scripts/` is this skill's own folder (`<skill dir>/scripts/`), not
+   the project's; run it with the project as working directory.
+2. **Tier A, always available** (standard library only, so the Claude app
+   sandbox runs it fully), a full audit from the files: pad nets, copper,
+   zones, vias and drills from the `.kicad_pcb`; schematic files and the
+   netlist export when the project ships one; docs; production files
+   (gerbers, drills, BOM, CPL).
    **Tier B, with kicad-cli**, adds re-running ERC and DRC with schematic
    parity and a fresh netlist instead of trusting the shipped reports.
 3. Scope: **stand-alone** (all gates reached) or **one gate** (as named).
